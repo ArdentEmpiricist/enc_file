@@ -2,6 +2,8 @@
 //!
 //! `Enc_File` is a simple tool to encrypt and decrypt files. Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
+//! Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography and bincode (https://docs.rs/bincode) for encoding.
+//!
 //! It's a binary target. Install via cargo install enc_file
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
@@ -110,8 +112,8 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 /// # Examples
 ///
 /// ```
-/// let key = read_file(keyfile)?;
-/// let key: &str = from_utf8(&key)?;
+/// let new_filename: String = filename.to_owned() + ".crpt";
+/// save_file(ciphertext, &new_filename).unwrap();
 /// ```
 pub fn save_file(data: Vec<u8>, path: &str) -> std::io::Result<()> {
     let mut file = File::create(path)?;
@@ -123,8 +125,8 @@ pub fn save_file(data: Vec<u8>, path: &str) -> std::io::Result<()> {
 /// # Examples
 ///
 /// ```
-/// let path: &str = "test.file";
-/// let content_read: Vec<u8> = read_file(&path).unwrap();
+/// let filename: &str = "test.file";
+/// create_key(&filename).unwrap();
 /// ```
 pub fn create_key(path: &str) -> std::io::Result<()> {
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
@@ -152,7 +154,7 @@ pub fn create_key(path: &str) -> std::io::Result<()> {
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
 /// let text_vec = text.to_vec();
-/// let ciphertext = encrypt_file(text_vec, key).unwrap();
+/// let ciphertext: Vec<u8> = encrypt_file(text_vec, key).unwrap();
 /// ```
 pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
@@ -176,7 +178,7 @@ pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn st
 ///
 /// ```
 /// let key: &str = "an example very very secret key.";
-/// let plaintext = decrypt_file(ciphertext, key).unwrap();
+/// let plaintext: Vec<u8> = decrypt_file(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn decrypt_file(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -203,7 +205,7 @@ mod tests {
     #[test]
     fn test_save_read_file() {
         let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let path: &str = "test.file";
+        let path: &str = "test_abcdefg.file";
         save_file(content.clone(), &path).unwrap();
         let content_read: Vec<u8> = read_file(&path).unwrap();
         remove_file(&path).unwrap(); //remove file created for this test
