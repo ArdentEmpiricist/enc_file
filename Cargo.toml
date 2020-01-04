@@ -1,0 +1,29 @@
+[package]
+name = "enc_file"
+version = "0.0.1"
+authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
+edition = "2018"
+description = "Simple tool to encrypt and decrypt files. Warning: Don't use for anything important, use VeraCrypt or similar instead."
+readme = "README.md"
+homepage = "https://docs.rs/enc_file/"
+documentation = "https://docs.rs/enc_file/"
+repository = "https://github.com/LazyEmpiricist/enc_file"
+keywords = ["encryption", "command-line-utilities"]
+categories = ["command-line-utilities", "cryptography"]
+license = "MIT"
+
+[lib]
+name = "enc_file"
+path = "src/lib.rs"
+
+[[bin]]
+name = "enc_file"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aes-gcm-siv = "0.3.0"
+rand = "0.7.2"
+serde = { version = "1.0.104", features = ["derive"] }
+bincode = "1.2.1"
