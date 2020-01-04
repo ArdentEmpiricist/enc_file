@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://docs.rs/enc_file/"
 documentation = "https://docs.rs/enc_file/"
 repository = "https://github.com/LazyEmpiricist/enc_file"
-keywords = ["encryption", "command-line-utilities"]
+keywords = ["encryption", "command-line"]
 categories = ["command-line-utilities", "cryptography"]
 license = "MIT"
 
