@@ -79,6 +79,7 @@
 use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
 use rand::distributions::Alphanumeric;
+use rand::rngs::OsRng;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -129,18 +130,10 @@ pub fn save_file(data: Vec<u8>, path: &str) -> std::io::Result<()> {
 /// create_key(&filename).unwrap();
 /// ```
 pub fn create_key(path: &str) -> std::io::Result<()> {
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                            abcdefghijklmnopqrstuvwxyz\
-                            0123456789)(*&^%$#@!~";
-    const KEY_LEN: usize = 32;
-    let mut rng = rand::thread_rng();
-
-    let key: String = (0..KEY_LEN)
-        .map(|_| {
-            let idx = rng.gen_range(0, CHARSET.len());
-            CHARSET[idx] as char
-        })
-        .collect();
+    let key: String = OsRng
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .collect::<String>();
 
     let mut file = File::create(path)?;
     file.write_all(&key.as_bytes())?;
@@ -159,7 +152,10 @@ pub fn create_key(path: &str) -> std::io::Result<()> {
 pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(key);
-    let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(12).collect();
+    let rand_string: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(12)
+        .collect::<String>();
     let nonce = GenericArray::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
