@@ -80,7 +80,7 @@ use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
 use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::prelude::*;
@@ -152,7 +152,7 @@ pub fn create_key(path: &str) -> std::io::Result<()> {
 pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(key);
-    let rand_string: String = thread_rng()
+    let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(12)
         .collect::<String>();

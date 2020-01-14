@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
 edition = "2018"
 description = "Simple tool to encrypt and decrypt files. Warning: Don't use for anything important, use VeraCrypt or similar instead."
