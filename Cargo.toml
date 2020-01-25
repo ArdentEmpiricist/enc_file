@@ -27,3 +27,4 @@ aes-gcm-siv = "0.3.0"
 rand = "0.7.3"
 serde = { version = "1.0.104", features = ["derive"] }
 bincode = "1.2.1"
+blake3 = "0.1.3"

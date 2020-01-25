@@ -75,7 +75,7 @@
 //
 // Both encrypt and decrypt override existing files!
 
-use ::enc_file::{create_key, decrypt_file, encrypt_file, read_file, save_file};
+use enc_file::{create_key, decrypt_file, encrypt_file, get_blake3_hash, read_file, save_file};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::str::from_utf8;
@@ -125,10 +125,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("File {}", &filename);
             create_key(&filename)?;
             println!("Keyfile {:?} created", &filename);
+        } else if operation == "hash" && args.len() == 3 {
+            let filename = &args[2];
+            let hash = get_blake3_hash(&filename)?;
+            println!("File: {}. BLAKE3 hash: {:?}", filename, hash);
         }
     } else {
         println!(
-            r#"Use "encrypt filename-to_encrypt filename-keyfile" or "decrypt filename-to_decrypt filename-keyfile" or "create-key filename-keyfile" "#
+            r#"Use "encrypt filename-to_encrypt filename-keyfile" or "decrypt filename-to_decrypt filename-keyfile" or "create-key filename-keyfile" or "hash filename" "#
         );
         println!(r#"Example: "encrypt text.txt key.file""#);
     }

@@ -54,7 +54,11 @@
 //!        println!("File {}", &filename);
 //!        create_key(&filename)?;
 //!        println!("Keyfile {:?} created", &filename);
-//!    }
+//!    } else if operation == "hash" && args.len() == 3 {
+//!         let filename = &args[2];
+//!         let hash = get_blake3_hash(&filename)?;
+//!         println!("File: {}. BLAKE3 hash: {:?}", filename, hash);
+//!         }
 //! } else {
 //!    println!(
 //!        r#"Use "encrypt filename-to_encrypt filename-keyfile" or "decrypt filename-to_decrypt filename-keyfile" or "create-key filename-keyfile" "#
@@ -194,6 +198,22 @@ pub fn decrypt_file(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::err
     Ok(plaintext)
 }
 
+/// Get BLAKE3 Hash from file. Returns result.
+/// # Examples
+///
+/// ```
+/// let filename = "cargo.toml";
+/// let hash1 = get_blake3_hash(&filename).unwrap();
+/// let hash2 = get_blake3_hash(&filename).unwrap();
+/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// assert_eq!(hash1, hash2);
+/// ```
+pub fn get_blake3_hash(path: &str) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
+    let data = read_file(path)?;
+    let hash = blake3::hash(&data);
+    Ok(hash)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +236,13 @@ mod tests {
         let ciphertext = encrypt_file(text_vec, key).unwrap();
         let plaintext = decrypt_file(ciphertext, key).unwrap();
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+    }
+
+    #[test]
+    fn test_hash() {
+        let filename = "cargo.toml";
+        let hash1 = get_blake3_hash(&filename).unwrap();
+        let hash2 = get_blake3_hash(&filename).unwrap();
+        assert_eq!(hash1, hash2);
     }
 }

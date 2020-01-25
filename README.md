@@ -13,6 +13,8 @@ Either generate a random keyfile via "cargo run create-key key.file" or use own 
 
 "cargo run decrypt example.file.crypt key.file" will create a new (decrypted) file "example.file" in the same directory.
 
+"cargo run hash example-file" will output BLAKE3 hash of this file.
+
 Both encrypt and decrypt override existing files!
 
 Issues and feedback are highly appreciated. 
