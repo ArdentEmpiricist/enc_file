@@ -2,7 +2,7 @@
 //!
 //! `Enc_File` is a simple tool to encrypt and decrypt files. Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
-//! Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography and bincode (https://docs.rs/bincode) for encoding.
+//! Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) for hashing.
 //!
 //! It's a binary target. Install via cargo install enc_file
 //!
