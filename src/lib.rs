@@ -80,12 +80,14 @@
 // "cargo run decrypt example.file.crypt key.file" will create a new (decrypted) file "example.file" in the same directory.
 //
 // Both encrypt and decrypt override existing files! aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
+// Calculate hash using BLAKE3 (recommended), SHA256 or SHA512
 use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
 use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256, Sha512};
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -214,6 +216,52 @@ pub fn get_blake3_hash(path: &str) -> Result<blake3::Hash, Box<dyn std::error::E
     Ok(hash)
 }
 
+/// Get SHA256 Hash from file. Returns result.
+/// # Examples
+///
+/// ```
+/// let filename = "cargo.toml";
+/// let hash1 = get_sha256_hash(&filename).unwrap();
+/// let hash2 = get_sha256_hash(&filename).unwrap();
+/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// assert_eq!(hash1, hash2);
+/// ```
+pub fn get_sha256_hash(path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let data = read_file(path)?;
+    // create a Sha256 object
+    let mut hasher = Sha256::new();
+
+    // write input message
+    hasher.input(data);
+
+    // read hash digest and consume hasher
+    let hash = hasher.result();
+    Ok(format!("{:?}", hash))
+}
+
+/// Get SHA512 Hash from file. Returns result.
+/// # Examples
+///
+/// ```
+/// let filename = "cargo.toml";
+/// let hash1 = get_sha512_hash(&filename).unwrap();
+/// let hash2 = get_sha512_hash(&filename).unwrap();
+/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// assert_eq!(hash1, hash2);
+/// ```
+pub fn get_sha512_hash(path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let data = read_file(path)?;
+    // create a Sha256 object
+    let mut hasher = Sha512::new();
+
+    // write input message
+    hasher.input(data);
+
+    // read hash digest and consume hasher
+    let hash = hasher.result();
+    Ok(format!("{:?}", hash))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,10 +287,26 @@ mod tests {
     }
 
     #[test]
-    fn test_hash() {
+    fn test_hash_blake3() {
         let filename = "cargo.toml";
         let hash1 = get_blake3_hash(&filename).unwrap();
         let hash2 = get_blake3_hash(&filename).unwrap();
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_hash_sha256() {
+        let filename = "cargo.toml";
+        let hash1 = get_sha256_hash(&filename).unwrap();
+        let hash2 = get_sha256_hash(&filename).unwrap();
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_hash_sha512() {
+        let filename = "cargo.toml";
+        let hash1 = get_sha512_hash(&filename).unwrap();
+        let hash2 = get_sha512_hash(&filename).unwrap();
         assert_eq!(hash1, hash2);
     }
 }
