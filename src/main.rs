@@ -99,8 +99,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if operation == "encrypt" && args.len() == 4 {
             let filename = &args[2];
             let keyfile = &args[3];
-            println!("File {}", &filename);
-            println!("Keyfile: {}", &keyfile);
+            println!("Encrypting File {}", &filename);
+            println!("With Keyfile: {}", &keyfile);
             let key = read_file(keyfile)?;
             let key: &str = from_utf8(&key)?;
             let content = read_file(&filename)?;
@@ -108,12 +108,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let new_filename: String = filename.to_owned() + ".crpt";
             //println!("Ciphertext: {:?}", &ciphertext);
             save_file(ciphertext, &new_filename)?;
-            println!("Successfully enrypted file to {:?}", &new_filename);
+            println!(
+                "Successfully enrypted file {} to {}",
+                filename, new_filename
+            );
         } else if operation == "decrypt" && args.len() == 4 {
             let filename = &args[2];
             let keyfile = &args[3];
-            println!("File {}", &filename);
-            println!("Keyfile: {}", &keyfile);
+            println!("Decrypting File {}", &filename);
+            println!("With Keyfile: {}", &keyfile);
             let key = read_file(keyfile)?;
             let key: &str = from_utf8(&key)?;
             let filename_decrypted: &str = &filename[0..filename.find(".crpt").unwrap()];
@@ -122,12 +125,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             //println!("Decrypted");
             let plaintext: Vec<u8> = decrypt_file(ciphertext, &key)?;
             save_file(plaintext, filename_decrypted)?;
-            println!("Successfully decrypted file to {:?}", &filename_decrypted);
+            println!(
+                "Successfully decrypted file {} to {}",
+                filename, filename_decrypted
+            );
         } else if operation == "create-key" && args.len() == 3 {
             let filename = &args[2];
-            println!("File {}", &filename);
+            println!("Create Keyfile {}", filename);
             create_key(&filename)?;
-            println!("Keyfile {:?} created", &filename);
+            println!("Keyfile {} created", filename);
         } else if operation == "hash" && args.len() == 3 {
             let filename = &args[2];
             let hash = get_blake3_hash(&filename)?;
