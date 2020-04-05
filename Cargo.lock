@@ -79,9 +79,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "0.2.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c58fbca3e5be3b7a3c24a5ec6976a6a464490528e8fee92896fe4ee2a40b10fb"
+checksum = "7bd3c29b0e8eedf3a4424b8b2ee09518fc9e95b7efe257000c356827e6353584"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "enc_file"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "aes-gcm-siv",
  "bincode",
@@ -307,18 +307,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.105"
+version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e707fbbf255b8fc8c3b99abb91e7257a622caeb20a9818cbadbeeede4e0932ff"
+checksum = "36df6ac6412072f67cf767ebbde4133a5b2e88e76dc6187fa7104cd16f783399"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.105"
+version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac5d00fc561ba2724df6758a17de23df5914f20e41cb00f94d5b7ae42fffaff8"
+checksum = "9e549e3abf4fb8621bd1609f11dfc9f5e50320802273b12f3811a67e6716ea6c"
 dependencies = [
  "proc-macro2",
  "quote",
