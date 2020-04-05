@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.1.2"
+version = "0.1.1"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
 edition = "2018"
 description = "Simple tool to encrypt and decrypt files. Warning: Don't use for anything important, use VeraCrypt or similar instead."
@@ -25,7 +25,7 @@ path = "src/main.rs"
 [dependencies]
 aes-gcm-siv = "0.4.1"
 rand = "0.7.3"
-serde = { version = "1.0.106", features = ["derive"] }
+serde = { version = "1.0.105", features = ["derive"] }
 bincode = "1.2.1"
-blake3 = "0.3.1"
+blake3 = "0.2.2"
 sha2 = "0.8.1"

@@ -90,6 +90,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct Cipher {
@@ -105,9 +106,9 @@ struct Cipher {
 /// let path: &str = "test.file";
 /// let content_read: Vec<u8> = read_file(&path).unwrap();
 /// ```
-pub fn read_file(path: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut f = File::open(path)?;
-    let mut buffer = Vec::new();
+    let mut buffer: Vec<u8> = Vec::new();
 
     // read the whole file
     f.read_to_end(&mut buffer)?;
@@ -122,7 +123,7 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 /// let new_filename: String = filename.to_owned() + ".crpt";
 /// save_file(ciphertext, &new_filename).unwrap();
 /// ```
-pub fn save_file(data: Vec<u8>, path: &str) -> std::io::Result<()> {
+pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
     let mut file = File::create(path)?;
     file.write_all(&data)?;
     Ok(())
@@ -135,7 +136,7 @@ pub fn save_file(data: Vec<u8>, path: &str) -> std::io::Result<()> {
 /// let filename: &str = "test.file";
 /// create_key(&filename).unwrap();
 /// ```
-pub fn create_key(path: &str) -> std::io::Result<()> {
+pub fn create_key(path: &PathBuf) -> std::io::Result<()> {
     let key: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(32)
@@ -210,8 +211,8 @@ pub fn decrypt_file(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::err
 /// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_blake3_hash(path: &str) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
-    let data = read_file(path)?;
+pub fn get_blake3_hash(path: &PathBuf) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
+    let data = read_file(&path)?;
     let hash = blake3::hash(&data);
     Ok(hash)
 }
@@ -226,8 +227,8 @@ pub fn get_blake3_hash(path: &str) -> Result<blake3::Hash, Box<dyn std::error::E
 /// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_sha256_hash(path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let data = read_file(path)?;
+pub fn get_sha256_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
+    let data = read_file(&path)?;
     // create a Sha256 object
     let mut hasher = Sha256::new();
 
@@ -249,8 +250,8 @@ pub fn get_sha256_hash(path: &str) -> Result<String, Box<dyn std::error::Error>>
 /// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_sha512_hash(path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let data = read_file(path)?;
+pub fn get_sha512_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
+    let data = read_file(&path)?;
     // create a Sha256 object
     let mut hasher = Sha512::new();
 
@@ -269,7 +270,7 @@ mod tests {
     #[test]
     fn test_save_read_file() {
         let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let path: &str = "test_abcdefg.file";
+        let path: PathBuf = PathBuf::from("test_abcdefg.file");
         save_file(content.clone(), &path).unwrap();
         let content_read: Vec<u8> = read_file(&path).unwrap();
         remove_file(&path).unwrap(); //remove file created for this test
@@ -288,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_hash_blake3() {
-        let filename = "cargo.toml";
+        let filename = PathBuf::from("cargo.toml");
         let hash1 = get_blake3_hash(&filename).unwrap();
         let hash2 = get_blake3_hash(&filename).unwrap();
         assert_eq!(hash1, hash2);
@@ -296,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_hash_sha256() {
-        let filename = "cargo.toml";
+        let filename = PathBuf::from("cargo.toml");
         let hash1 = get_sha256_hash(&filename).unwrap();
         let hash2 = get_sha256_hash(&filename).unwrap();
         assert_eq!(hash1, hash2);
@@ -304,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_hash_sha512() {
-        let filename = "cargo.toml";
+        let filename = PathBuf::from("cargo.toml");
         let hash1 = get_sha512_hash(&filename).unwrap();
         let hash2 = get_sha512_hash(&filename).unwrap();
         assert_eq!(hash1, hash2);

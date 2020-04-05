@@ -81,6 +81,7 @@ use enc_file::{
 };
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::path::PathBuf;
 use std::str::from_utf8;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -97,55 +98,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let operation = &args[1];
         println!("Operation: {}", &operation);
         if operation == "encrypt" && args.len() == 4 {
-            let filename = &args[2];
-            let keyfile = &args[3];
-            println!("Encrypting File {}", &filename);
-            println!("With Keyfile: {}", &keyfile);
-            let key = read_file(keyfile)?;
+            let filename = PathBuf::from(&args[2]);
+            let keyfile = PathBuf::from(&args[3]);
+            println!("Encrypting File {:?}", &filename);
+            println!("With Keyfile: {:?}", &keyfile);
+            let key = read_file(&keyfile)?;
             let key: &str = from_utf8(&key)?;
             let content = read_file(&filename)?;
             let ciphertext: Vec<u8> = encrypt_file(content, &key)?;
-            let new_filename: String = filename.to_owned() + ".crpt";
+            let new_filename: String =
+                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
+            let new_filename: PathBuf = PathBuf::from(new_filename);
             //println!("Ciphertext: {:?}", &ciphertext);
             save_file(ciphertext, &new_filename)?;
             println!(
-                "Successfully enrypted file {} to {}",
+                "Successfully enrypted file {:?} to {:?}",
                 filename, new_filename
             );
         } else if operation == "decrypt" && args.len() == 4 {
-            let filename = &args[2];
-            let keyfile = &args[3];
-            println!("Decrypting File {}", &filename);
-            println!("With Keyfile: {}", &keyfile);
-            let key = read_file(keyfile)?;
+            let filename = PathBuf::from(&args[2]);
+            let keyfile = PathBuf::from(&args[3]);
+            println!("Decrypting File {:?}", &filename);
+            println!("With Keyfile: {:?}", &keyfile);
+            let key = read_file(&keyfile)?;
             let key: &str = from_utf8(&key)?;
-            let filename_decrypted: &str = &filename[0..filename.find(".crpt").unwrap()];
-            let ciphertext = read_file(filename)?;
+            let filename_two = &filename.clone();
+            let filename_decrypted: &str = &filename_two.to_str().unwrap();
+            [0..filename_two.to_str().unwrap().find(".crpt").unwrap()];
+            let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
+            let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);
             //println!("Decrypted");
             let plaintext: Vec<u8> = decrypt_file(ciphertext, &key)?;
-            save_file(plaintext, filename_decrypted)?;
+            save_file(plaintext, &filename_decrypted_path)?;
             println!(
-                "Successfully decrypted file {} to {}",
+                "Successfully decrypted file {:?} to {:?}",
                 filename, filename_decrypted
             );
         } else if operation == "create-key" && args.len() == 3 {
-            let filename = &args[2];
-            println!("Create Keyfile {}", filename);
+            let filename = PathBuf::from(&args[2]);
+            println!("Create Keyfile {:?}", filename);
             create_key(&filename)?;
-            println!("Keyfile {} created", filename);
+            println!("Keyfile {:?} created", filename);
         } else if operation == "hash" && args.len() == 3 {
-            let filename = &args[2];
+            let filename = PathBuf::from(&args[2]);
             let hash = get_blake3_hash(&filename)?;
-            println!("File: {}. BLAKE3 hash: {:?}", filename, hash);
+            println!("File: {:?}. BLAKE3 hash: {:?}", filename, hash);
         } else if operation == "hash_sha256" && args.len() == 3 {
-            let filename = &args[2];
+            let filename = PathBuf::from(&args[2]);
             let hash = get_sha256_hash(&filename)?;
-            println!("File: {}. SHA256 hash: {:?}", filename, hash);
+            println!("File: {:?}. SHA256 hash: {:?}", filename, hash);
         } else if operation == "hash_sha512" && args.len() == 3 {
-            let filename = &args[2];
+            let filename = PathBuf::from(&args[2]);
             let hash = get_sha512_hash(&filename)?;
-            println!("File: {}. SHA512 hash: {:?}", filename, hash);
+            println!("File: {:?}. SHA512 hash: {:?}", filename, hash);
         }
     } else {
         println!(
