@@ -283,6 +283,7 @@ mod tests {
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
         let ciphertext = encrypt_file(text_vec, key).unwrap();
+        assert_ne!(&ciphertext, &text);
         let plaintext = decrypt_file(ciphertext, key).unwrap();
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
     }
