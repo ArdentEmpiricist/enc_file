@@ -2,7 +2,9 @@
 //!
 //! `Enc_File` is a simple tool to encrypt and decrypt files. Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
-//! Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) for hashing.
+//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes - old files can still be used. 
+//!
+//! Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //!
 //! It's a binary target. Install via cargo install enc_file
 //!
@@ -71,7 +73,7 @@
 
 // Warning: Don't use for anything important! This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 //
-// Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography and bincode (https://docs.rs/bincode) for encoding.
+// Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //
 // Either generate a keyfile via "cargo run create-key key.file" or use own 32-long char-utf8 password in a keyfile.
 //
@@ -79,10 +81,13 @@
 //
 // "cargo run decrypt example.file.crypt key.file" will create a new (decrypted) file "example.file" in the same directory.
 //
-// Both encrypt and decrypt override existing files! aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
-// Calculate hash using BLAKE3 (recommended), SHA256 or SHA512
+// Both encrypt and decrypt override existing files! 
+//
+// Calculate hash using BLAKE3 (argument "hash", recommended), SHA256 (argument "hash_sha256") or SHA512 (argument "hash_sha512")
+
 use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
+use chacha20poly1305::XChaCha20Poly1305;
 use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
 use rand::Rng;
@@ -156,12 +161,41 @@ pub fn create_key(path: &PathBuf) -> std::io::Result<()> {
 /// let text_vec = text.to_vec();
 /// let ciphertext: Vec<u8> = encrypt_file(text_vec, key).unwrap();
 /// ```
-pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn encrypt_file_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(key);
     let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(12)
+        .collect::<String>();
+    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let ciphertext: Vec<u8> = aead
+        .encrypt(nonce, cleartext.as_ref())
+        .expect("encryption failure!");
+    let ciphertext_to_send = Cipher {
+        len: ciphertext.len(),
+        rand_string,
+        ciphertext,
+    };
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    Ok(encoded)
+}
+
+/// Encrypts cleartext (Vec<u8>) into ciphertext (Vec<u8>) using XChaCha20Poly1305 with provided key from keyfile. Returns result.
+/// # Examples
+///
+/// ```
+/// let text = b"This a test";
+/// let key: &str = "an example very very secret key.";
+/// let text_vec = text.to_vec();
+/// let ciphertext: Vec<u8> = encrypt_file_chacha(text_vec, key).unwrap();
+/// ```
+pub fn encrypt_file_chacha(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let aead = XChaCha20Poly1305::new(key);
+    let rand_string: String = OsRng
+        .sample_iter(&Alphanumeric)
+        .take(24)
         .collect::<String>();
     let nonce = GenericArray::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
@@ -184,9 +218,34 @@ pub fn encrypt_file(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn st
 /// let plaintext: Vec<u8> = decrypt_file(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
-pub fn decrypt_file(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(key);
+    let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
+    let (ciphertext2, len_ciphertext, rand_string2) =
+        (decoded.ciphertext, decoded.len, decoded.rand_string);
+    if ciphertext2.len() != len_ciphertext {
+        panic!("length of received ciphertext not ok")
+    };
+    let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    let plaintext: Vec<u8> = aead
+        .decrypt(nonce, ciphertext2.as_ref())
+        .expect("decryption failure!");
+    //println!("{:?}", std::str::from_utf8(&plaintext).unwrap());
+    Ok(plaintext)
+}
+
+/// Decrypts ciphertext (Vec<u8>) into cleartext (Vec<u8>) using XChaCha20Poly1305 with provided key from keyfile. Returns result.
+/// # Examples
+///
+/// ```
+/// let key: &str = "an example very very secret key.";
+/// let plaintext: Vec<u8> = decrypt_file(ciphertext, key).unwrap();
+/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+/// ```
+pub fn decrypt_file_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let aead = XChaCha20Poly1305::new(key);
     let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
@@ -278,13 +337,24 @@ mod tests {
     }
 
     #[test]
-    fn test_encryt_decrypt() {
+    fn test_encryt_decrypt_aes() {
         let text = b"This a test";
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
-        let ciphertext = encrypt_file(text_vec, key).unwrap();
+        let ciphertext = encrypt_file_aes(text_vec, key).unwrap();
         assert_ne!(&ciphertext, &text);
-        let plaintext = decrypt_file(ciphertext, key).unwrap();
+        let plaintext = decrypt_file_aes(ciphertext, key).unwrap();
+        assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+    }
+
+    #[test]
+    fn test_encryt_decrypt_chacha() {
+        let text = b"This a test";
+        let key: &str = "an example very very secret key.";
+        let text_vec = text.to_vec();
+        let ciphertext = encrypt_file_chacha(text_vec, key).unwrap();
+        assert_ne!(&ciphertext, &text);
+        let plaintext = decrypt_file_chacha(ciphertext, key).unwrap();
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
     }
 

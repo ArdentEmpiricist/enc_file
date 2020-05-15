@@ -28,7 +28,7 @@
 //!        let key = read_file(keyfile)?;
 //!        let key: &str = from_utf8(&key)?;
 //!        let content = read_file(&filename)?;
-//!        let ciphertext: Vec<u8> = encrypt_file(content, &key)?;
+//!        let ciphertext: Vec<u8> = encrypt_file_chacha(content, &key)?;
 //!        let new_filename: String = filename.to_owned() + ".crypt";
 //!        //println!("Ciphertext: {:?}", &ciphertext);
 //!        save_file(ciphertext, &new_filename)?;
@@ -44,7 +44,7 @@
 //!        let ciphertext = read_file(filename)?;
 //!        //println!("Ciphertext read from file: {:?}", &ciphertext);
 //!        //println!("Decrypted");
-//!        let plaintext: Vec<u8> = decrypt_file(ciphertext, &key)?;
+//!        let plaintext: Vec<u8> = decrypt_file_chacha(ciphertext, &key)?;
 //!        save_file(plaintext, filename_decrypted)?;
 //!        println!("Successfully decrypted file to {:?}", &filename_decrypted);
 //!    } else if operation == "create-key" && args.len() == 3 {
@@ -65,7 +65,9 @@
 
 // Warning: Don't use for anything important! This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 //
-// Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography and bincode (https://docs.rs/bincode) for encoding.
+// Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes - old files can still be used. 
+//
+// Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //
 // Either generate a keyfile via "cargo run create-key key.file" or use own 32-long char-utf8 password in a keyfile. Key has to be valid utf8.
 //
@@ -76,7 +78,7 @@
 // Both encrypt and decrypt override existing files!
 
 use enc_file::{
-    create_key, decrypt_file, encrypt_file, get_blake3_hash, get_sha256_hash, get_sha512_hash,
+    create_key, decrypt_file, decrypt_file_chacha, encrypt_file,encrypt_file_chacha, get_blake3_hash, get_sha256_hash, get_sha512_hash,
     read_file, save_file,
 };
 use serde::{Deserialize, Serialize};
@@ -105,7 +107,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let key = read_file(&keyfile)?;
             let key: &str = from_utf8(&key)?;
             let content = read_file(&filename)?;
-            let ciphertext: Vec<u8> = encrypt_file(content, &key)?;
+            let ciphertext: Vec<u8> = encrypt_file_chacha(content, &key)?;
+            let new_filename: String =
+                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
+            let new_filename: PathBuf = PathBuf::from(new_filename);
+            //println!("Ciphertext: {:?}", &ciphertext);
+            save_file(ciphertext, &new_filename)?;
+            println!(
+                "Successfully enrypted file {:?} to {:?}",
+                filename, new_filename
+            );
+        } if operation == "encrypt_aes" && args.len() == 4 {
+            let filename = PathBuf::from(&args[2]);
+            let keyfile = PathBuf::from(&args[3]);
+            println!("Encrypting File {:?}", &filename);
+            println!("With Keyfile: {:?}", &keyfile);
+            let key = read_file(&keyfile)?;
+            let key: &str = from_utf8(&key)?;
+            let content = read_file(&filename)?;
+            let ciphertext: Vec<u8> = encrypt_file_aes(content, &key)?;
             let new_filename: String =
                 filename.clone().into_os_string().into_string().unwrap() + ".crpt";
             let new_filename: PathBuf = PathBuf::from(new_filename);
@@ -129,7 +149,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);
             //println!("Decrypted");
-            let plaintext: Vec<u8> = decrypt_file(ciphertext, &key)?;
+            let plaintext: Vec<u8> = decrypt_file_chacha(ciphertext, &key)?;
+            save_file(plaintext, &filename_decrypted_path)?;
+            println!(
+                "Successfully decrypted file {:?} to {:?}",
+                filename, filename_decrypted
+            );
+        } else if operation == "decrypt_aes" && args.len() == 4 {
+            let filename = PathBuf::from(&args[2]);
+            let keyfile = PathBuf::from(&args[3]);
+            println!("Decrypting File {:?}", &filename);
+            println!("With Keyfile: {:?}", &keyfile);
+            let key = read_file(&keyfile)?;
+            let key: &str = from_utf8(&key)?;
+            let filename_two = &filename.clone();
+            let filename_decrypted: &str = &filename_two.to_str().unwrap();
+            [0..filename_two.to_str().unwrap().find(".crpt").unwrap()];
+            let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
+            let ciphertext = read_file(&filename)?;
+            //println!("Ciphertext read from file: {:?}", &ciphertext);
+            //println!("Decrypted");
+            let plaintext: Vec<u8> = decrypt_file_aes(ciphertext, &key)?;
             save_file(plaintext, &filename_decrypted_path)?;
             println!(
                 "Successfully decrypted file {:?} to {:?}",
@@ -155,7 +195,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     } else {
         println!(
-            r#"Use "encrypt filename-to_encrypt filename-keyfile" or "decrypt filename-to_decrypt filename-keyfile" or "create-key filename-keyfile" or "hash filename" (using BLAKE3) or "hash_sha256 filename" or "hash_sha512 filename" "#
+            r#"Use "encrypt filename-to_encrypt filename-keyfile" to encrypt a file using XChaCha20Poly1305 or 
+            "encrypt_aes filename-to_encrypt filename-keyfile" to encrypt a file using AES-GCM-SIV or
+            "decrypt filename-to_decrypt filename-keyfile" to decrypt a file using XChaCha20Poly1305 or 
+            "decrypt_aes filename-to_decrypt filename-keyfile" to decrypt a file using AES-GCM-SIV or
+            "create-key filename-keyfile" to create a new random  keyfile or 
+            "hash filename" (using BLAKE3) to calculate the BLAKE3 hash for a file or 
+            "hash_sha256 filename" to calculate the SHA256 hash for a file or 
+            "hash_sha512 filename" ro calculate the SHA512 hash for a file"#
         );
         println!(r#"Example: "encrypt text.txt key.file""#);
     }
