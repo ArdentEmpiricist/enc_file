@@ -5,9 +5,13 @@ This crate hasn't been audited or reviewed in any sense. I created it to easily 
 
 To install: clone the repository and build from source or use cargo install enc_file.
 
-Uses AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) and serde (https://docs.serde.rs/serde/) for encoding, BLAKE3 (https://docs.rs/blake3) and SHA2(https://docs.rs/sha2).
+Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes - old files can still be used. 
 
-Either generate a random keyfile via "cargo run create-key key.file" or use own 32-long char-utf8 password in a keyfile.
+Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
+
+Encrypted files are (and have to be) stored as .crpt.
+
+Either generate a keyfile via "cargo run create-key key.file" or use own 32-long char-utf8 password in a keyfile. Key has to be valid utf8.
 
 "cargo run encrypt example.file key.file" will create a new (encrypted) file "example.file.crypt" in the same directory.
 
