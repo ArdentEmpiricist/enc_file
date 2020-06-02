@@ -88,7 +88,7 @@ use std::str::from_utf8;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct Cipher {
-    len: usize,
+    len: u128,
     rand_string: String,
     ciphertext: Vec<u8>,
 }
@@ -109,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let content = read_file(&filename)?;
             let ciphertext: Vec<u8> = encrypt_file_chacha(content, &key)?;
             let new_filename: String =
-                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
+                filename.clone().into_os_string().into_string().unwrap() + r#".crpt"#;
             let new_filename: PathBuf = PathBuf::from(new_filename);
             //println!("Ciphertext: {:?}", &ciphertext);
             save_file(ciphertext, &new_filename)?;
@@ -127,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let content = read_file(&filename)?;
             let ciphertext: Vec<u8> = encrypt_file_aes(content, &key)?;
             let new_filename: String =
-                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
+                filename.clone().into_os_string().into_string().unwrap() + r#".crpt"#;
             let new_filename: PathBuf = PathBuf::from(new_filename);
             //println!("Ciphertext: {:?}", &ciphertext);
             save_file(ciphertext, &new_filename)?;
@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let key: &str = from_utf8(&key)?;
             let filename_two = &filename.clone();
             let filename_decrypted: &str =
-                    &filename_two.to_str().unwrap().replace("crpt", "plaintext");
+                    &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
             let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
             let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);
@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let key: &str = from_utf8(&key)?;
             let filename_two = &filename.clone();
             let filename_decrypted: &str =
-                    &filename_two.to_str().unwrap().replace("crpt", "plaintext");
+                    &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
             let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
             let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);

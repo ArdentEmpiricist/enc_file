@@ -323,7 +323,7 @@ pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std:
 pub fn decrypt_file_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(key);
-    let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
+    let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
     if ciphertext2.len() != len_ciphertext {
