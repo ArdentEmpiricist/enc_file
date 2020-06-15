@@ -240,7 +240,7 @@ pub fn create_key(path: &PathBuf) -> std::io::Result<()> {
 /// ```
 pub fn encrypt_file_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(key);
+    let aead = Aes256GcmSiv::new(&key);
     let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(12)
@@ -269,7 +269,7 @@ pub fn encrypt_file_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dy
 /// ```
 pub fn encrypt_file_chacha(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
+    let aead = XChaCha20Poly1305::new(&key);
     let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(24)
@@ -297,7 +297,7 @@ pub fn encrypt_file_chacha(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box
 /// ```
 pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(key);
+    let aead = Aes256GcmSiv::new(&key);
     let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
@@ -322,7 +322,7 @@ pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std:
 /// ```
 pub fn decrypt_file_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
+    let aead = XChaCha20Poly1305::new(&key);
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
@@ -369,10 +369,10 @@ pub fn get_sha256_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Err
     let mut hasher = Sha256::new();
 
     // write input message
-    hasher.input(data);
+    hasher.update(data);
 
     // read hash digest and consume hasher
-    let hash = hasher.result();
+    let hash = hasher.finalize();
     Ok(format!("{:?}", hash))
 }
 
@@ -392,10 +392,10 @@ pub fn get_sha512_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Err
     let mut hasher = Sha512::new();
 
     // write input message
-    hasher.input(data);
+    hasher.update(data);
 
     // read hash digest and consume hasher
-    let hash = hasher.result();
+    let hash = hasher.finalize();
     Ok(format!("{:?}", hash))
 }
 
