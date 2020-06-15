@@ -2,7 +2,7 @@
 //!
 //! `Enc_File` is a simple tool to encrypt and decrypt files. Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
-//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability. 
+//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
 //!
 //! Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //!
@@ -131,13 +131,13 @@
 //!        }
 //!    } else {
 //!        println!(
-//!            r#"Use "encrypt filename-to_encrypt filename-keyfile" to encrypt a file using XChaCha20Poly1305 or 
+//!            r#"Use "encrypt filename-to_encrypt filename-keyfile" to encrypt a file using XChaCha20Poly1305 or
 //!            "encrypt_aes filename-to_encrypt filename-keyfile" to encrypt a file using AES-GCM-SIV or
-//!            "decrypt filename-to_decrypt filename-keyfile" to decrypt a file using XChaCha20Poly1305 or 
+//!            "decrypt filename-to_decrypt filename-keyfile" to decrypt a file using XChaCha20Poly1305 or
 //!            "decrypt_aes filename-to_decrypt filename-keyfile" to decrypt a file using AES-GCM-SIV or
-//!            "create-key filename-keyfile" to create a new random  keyfile or 
-//!            "hash filename" (using BLAKE3) to calculate the BLAKE3 hash for a file or 
-//!            "hash_sha256 filename" to calculate the SHA256 hash for a file or 
+//!            "create-key filename-keyfile" to create a new random  keyfile or
+//!            "hash filename" (using BLAKE3) to calculate the BLAKE3 hash for a file or
+//!            "hash_sha256 filename" to calculate the SHA256 hash for a file or
 //!            "hash_sha512 filename" ro calculate the SHA512 hash for a file"#
 //!        );
 //!        println!(r#"Example: "encrypt text.txt key.file""#);
@@ -158,7 +158,7 @@
 //
 // "cargo run decrypt example.file.crypt key.file" will create a new (decrypted) file "example.file" in the same directory.
 //
-// Both encrypt and decrypt override existing files! 
+// Both encrypt and decrypt override existing files!
 //
 // Calculate hash using BLAKE3 (argument "hash", recommended), SHA256 (argument "hash_sha256") or SHA512 (argument "hash_sha512")
 
@@ -238,7 +238,10 @@ pub fn create_key(path: &PathBuf) -> std::io::Result<()> {
 /// let text_vec = text.to_vec();
 /// let ciphertext: Vec<u8> = encrypt_file_aes(text_vec, key).unwrap();
 /// ```
-pub fn encrypt_file_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn encrypt_file_aes(
+    cleartext: Vec<u8>,
+    key: &str,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
     let rand_string: String = OsRng
@@ -267,7 +270,10 @@ pub fn encrypt_file_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dy
 /// let text_vec = text.to_vec();
 /// let ciphertext: Vec<u8> = encrypt_file_chacha(text_vec, key).unwrap();
 /// ```
-pub fn encrypt_file_chacha(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn encrypt_file_chacha(
+    cleartext: Vec<u8>,
+    key: &str,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
     let rand_string: String = OsRng
@@ -466,20 +472,19 @@ mod tests {
         let range = Uniform::new(0, 255);
         let mut i = 1;
         while i < 1000 {
-        let key: String = OsRng
-        .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
-            
-        let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-        let ciphertext = encrypt_file_chacha(content.clone(), &key).unwrap();
-        assert_ne!(&ciphertext, &content);
-        let plaintext = decrypt_file_chacha(ciphertext, &key).unwrap();
-        assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
+            let key: String = OsRng
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .collect::<String>();
 
-        i += 1;
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let ciphertext = encrypt_file_chacha(content.clone(), &key).unwrap();
+            assert_ne!(&ciphertext, &content);
+            let plaintext = decrypt_file_chacha(ciphertext, &key).unwrap();
+            assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
+
+            i += 1;
         }
-
     }
 
     #[test]
@@ -489,19 +494,18 @@ mod tests {
         let range = Uniform::new(0, 255);
         let mut i = 1;
         while i < 1000 {
-        let key: String = OsRng
-        .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
-            
-        let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-        let ciphertext = encrypt_file_aes(content.clone(), &key).unwrap();
-        assert_ne!(&ciphertext, &content);
-        let plaintext = decrypt_file_aes(ciphertext, &key).unwrap();
-        assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
+            let key: String = OsRng
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .collect::<String>();
 
-        i += 1;
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let ciphertext = encrypt_file_aes(content.clone(), &key).unwrap();
+            assert_ne!(&ciphertext, &content);
+            let plaintext = decrypt_file_aes(ciphertext, &key).unwrap();
+            assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
+
+            i += 1;
         }
-
     }
 }

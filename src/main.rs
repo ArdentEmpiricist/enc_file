@@ -78,8 +78,8 @@
 // Both encrypt and decrypt override existing files!
 
 use enc_file::{
-    create_key, decrypt_file_aes, decrypt_file_chacha, encrypt_file_aes, encrypt_file_chacha, get_blake3_hash, get_sha256_hash, get_sha512_hash,
-    read_file, save_file,
+    create_key, decrypt_file_aes, decrypt_file_chacha, encrypt_file_aes, encrypt_file_chacha,
+    get_blake3_hash, get_sha256_hash, get_sha512_hash, read_file, save_file,
 };
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -117,7 +117,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "Successfully enrypted file {:?} to {:?}",
                 filename, new_filename
             );
-        } if operation == "encrypt_aes" && args.len() == 4 {
+        }
+        if operation == "encrypt_aes" && args.len() == 4 {
             let filename = PathBuf::from(&args[2]);
             let keyfile = PathBuf::from(&args[3]);
             println!("Encrypting File {:?}", &filename);
@@ -144,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let key: &str = from_utf8(&key)?;
             let filename_two = &filename.clone();
             let filename_decrypted: &str =
-                    &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
+                &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
             let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
             let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);
@@ -164,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let key: &str = from_utf8(&key)?;
             let filename_two = &filename.clone();
             let filename_decrypted: &str =
-                    &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
+                &filename_two.to_str().unwrap().replace(r#".crpt"#, r#""#);
             let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
             let ciphertext = read_file(&filename)?;
             //println!("Ciphertext read from file: {:?}", &ciphertext);
@@ -195,16 +196,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     } else {
         println!(
-            r#"Use "encrypt filename-to_encrypt filename-keyfile" to encrypt a file using XChaCha20Poly1305 or 
-            "encrypt_aes filename-to_encrypt filename-keyfile" to encrypt a file using AES-GCM-SIV or
-            "decrypt filename-to_decrypt filename-keyfile" to decrypt a file using XChaCha20Poly1305 or 
-            "decrypt_aes filename-to_decrypt filename-keyfile" to decrypt a file using AES-GCM-SIV or
-            "create-key filename-keyfile" to create a new random  keyfile or 
-            "hash filename" (using BLAKE3) to calculate the BLAKE3 hash for a file or 
-            "hash_sha256 filename" to calculate the SHA256 hash for a file or 
-            "hash_sha512 filename" ro calculate the SHA512 hash for a file"#
+            r#"Use "encrypt [filename-to_encrypt] [filename-keyfile]" to encrypt a file using XChaCha20Poly1305 or 
+            "encrypt_aes [filename-to_encrypt] [filename-keyfile]" to encrypt a file using AES-GCM-SIV or
+            "decrypt [filename-to_decrypt] [filename-keyfile]" to decrypt a file using XChaCha20Poly1305 or 
+            "decrypt_aes [filename-to_decrypt] [filename-keyfile]" to decrypt a file using AES-GCM-SIV or
+            "create-key [filename-keyfile]" to create a new random  keyfile or 
+            "hash [filename]" (using BLAKE3) to calculate the BLAKE3 hash for a file or 
+            "hash_sha256 [filename]" to calculate the SHA256 hash for a file or 
+            "hash_sha512 [filename]" ro calculate the SHA512 hash for a file"#
         );
-        println!(r#"Example: "encrypt text.txt key.file""#);
+        println!(
+            r#"Example: "encrypt text.txt key.file"
+        or: hash cargo.toml"#
+        );
     }
     Ok(())
 }
