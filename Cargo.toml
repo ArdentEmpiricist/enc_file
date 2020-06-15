@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
 edition = "2018"
 description = "Simple tool to encrypt and decrypt files. Warning: Don't use for anything important, use VeraCrypt or similar instead."
@@ -8,8 +8,8 @@ readme = "README.md"
 homepage = "https://docs.rs/enc_file/"
 documentation = "https://docs.rs/enc_file/"
 repository = "https://github.com/LazyEmpiricist/enc_file"
-keywords = ["encryption", "command-line"]
-categories = ["command-line-utilities", "cryptography"]
+keywords = ["encryption", "command-line", "chacha20poly1305", "aes-gcm", "blake3", "sha2"]
+categories = ["command-line-utilities", "cryptography", "encoding", "filesystem"]
 license = "MIT"
 
 [lib]
