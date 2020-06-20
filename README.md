@@ -1,5 +1,5 @@
 # Enc-File
-Simple tool to encrypt / decrypt / hash files. Written in Rust. Warning: Don't use for anything important, use VeraCrypt or similar instead.
+Encrypt / decrypt / hash files from the command line. Written in Rust. Warning: Don't use for anything important, use VeraCrypt or similar instead.
 
 This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 

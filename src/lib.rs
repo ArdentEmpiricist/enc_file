@@ -442,6 +442,69 @@ mod tests {
     }
 
     #[test]
+    fn test_multiple_encrypt_unequal_chacha() {
+        use rand::{distributions::Uniform, Rng};
+        let mut rng = rand::thread_rng();
+        let range = Uniform::new(0, 255);
+
+        let mut i = 1;
+        while i < 1000 {
+            let key: String = OsRng
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .collect::<String>();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let ciphertext1 = encrypt_file_chacha(content.clone(), &key).unwrap();
+            let ciphertext2 = encrypt_file_chacha(content.clone(), &key).unwrap();
+            let ciphertext3 = encrypt_file_chacha(content.clone(), &key).unwrap();
+            let ciphertext4 = encrypt_file_chacha(content.clone(), &key).unwrap();
+            let ciphertext5 = encrypt_file_chacha(content, &key).unwrap();
+            assert_ne!(&ciphertext1, &ciphertext2);
+            assert_ne!(&ciphertext1, &ciphertext3);
+            assert_ne!(&ciphertext1, &ciphertext4);
+            assert_ne!(&ciphertext1, &ciphertext5);
+            assert_ne!(&ciphertext2, &ciphertext3);
+            assert_ne!(&ciphertext2, &ciphertext4);
+            assert_ne!(&ciphertext2, &ciphertext5);
+            assert_ne!(&ciphertext3, &ciphertext4);
+            assert_ne!(&ciphertext3, &ciphertext5);
+            assert_ne!(&ciphertext4, &ciphertext5);
+            i += 1;
+        }
+    }
+
+    #[test]
+    fn test_multiple_encrypt_unequal_aes() {
+        use rand::{distributions::Uniform, Rng};
+        let mut rng = rand::thread_rng();
+        let range = Uniform::new(0, 255);
+        let mut i = 1;
+        while i < 1000 {
+            let key: String = OsRng
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .collect::<String>();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let ciphertext1 = encrypt_file_aes(content.clone(), &key).unwrap();
+            let ciphertext2 = encrypt_file_aes(content.clone(), &key).unwrap();
+            let ciphertext3 = encrypt_file_aes(content.clone(), &key).unwrap();
+            let ciphertext4 = encrypt_file_aes(content.clone(), &key).unwrap();
+            let ciphertext5 = encrypt_file_aes(content, &key).unwrap();
+            assert_ne!(&ciphertext1, &ciphertext2);
+            assert_ne!(&ciphertext1, &ciphertext3);
+            assert_ne!(&ciphertext1, &ciphertext4);
+            assert_ne!(&ciphertext1, &ciphertext5);
+            assert_ne!(&ciphertext2, &ciphertext3);
+            assert_ne!(&ciphertext2, &ciphertext4);
+            assert_ne!(&ciphertext2, &ciphertext5);
+            assert_ne!(&ciphertext3, &ciphertext4);
+            assert_ne!(&ciphertext3, &ciphertext5);
+            assert_ne!(&ciphertext4, &ciphertext5);
+            i += 1;
+        }
+    }
+
+    #[test]
     fn test_hash_blake3() {
         let filename = PathBuf::from("cargo.toml");
         let hash1 = get_blake3_hash(&filename).unwrap();
