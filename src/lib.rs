@@ -1,6 +1,9 @@
 //! # Enc_File
 //!
-//! `Enc_File` is a simple tool to encrypt and decrypt files. Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
+//! Encrypt / decrypt files or calculate the HASH from the command line.
+//! Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
+//!
+//! Breaking change in Version 0.3: Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" and choose "manually".
 //!
 //! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
 //!
@@ -8,143 +11,10 @@
 //!
 //! Encrypted files are (and have to be) stored as .crpt.
 //!
-//! It's a binary target. Install via cargo install enc_file
+//! Can be used as library and a binary target. Install via cargo install enc_file
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
 //!
-//! # Examples
-//!
-//! ```
-//! use enc_file::{
-//!   create_key, decrypt_file_aes, decrypt_file_chacha, encrypt_file_aes, encrypt_file_chacha, get_blake3_hash, get_sha256_hash, get_sha512_hash,
-//!   read_file, save_file,
-//!};
-//!use serde::{Deserialize, Serialize};
-//!use std::env;
-//!use std::path::PathBuf;
-//!use std::str::from_utf8;
-//!
-//!#[derive(Serialize, Deserialize, PartialEq, Debug)]
-//! struct Cipher {
-//!    len: usize,
-//!    rand_string: String,
-//!    ciphertext: Vec<u8>,
-//! }
-//!    let args: Vec<String> = env::args().collect();
-//!    //args[0] will be the filename or the cargo command!
-//!    if args.len() >= 2 {
-//!        let operation = &args[1];
-//!        println!("Operation: {}", &operation);
-//!        if operation == "encrypt" && args.len() == 4 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let keyfile = PathBuf::from(&args[3]);
-//!            println!("Encrypting File {:?}", &filename);
-//!            println!("With Keyfile: {:?}", &keyfile);
-//!            let key = read_file(&keyfile)?;
-//!            let key: &str = from_utf8(&key)?;
-//!            let content = read_file(&filename)?;
-//!            let ciphertext: Vec<u8> = encrypt_file_chacha(content, &key)?;
-//!            let new_filename: String =
-//!                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
-//!            let new_filename: PathBuf = PathBuf::from(new_filename);
-//!            //println!("Ciphertext: {:?}", &ciphertext);
-//!            save_file(ciphertext, &new_filename)?;
-//!            println!(
-//!                "Successfully enrypted file {:?} to {:?}",
-//!                filename, new_filename
-//!            );
-//!        } if operation == "encrypt_aes" && args.len() == 4 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let keyfile = PathBuf::from(&args[3]);
-//!            println!("Encrypting File {:?}", &filename);
-//!            println!("With Keyfile: {:?}", &keyfile);
-//!            let key = read_file(&keyfile)?;
-//!            let key: &str = from_utf8(&key)?;
-//!            let content = read_file(&filename)?;
-//!            let ciphertext: Vec<u8> = encrypt_file_aes(content, &key)?;
-//!            let new_filename: String =
-//!                filename.clone().into_os_string().into_string().unwrap() + ".crpt";
-//!            let new_filename: PathBuf = PathBuf::from(new_filename);
-//!            //println!("Ciphertext: {:?}", &ciphertext);
-//!            save_file(ciphertext, &new_filename)?;
-//!            println!(
-//!                "Successfully enrypted file {:?} to {:?}",
-//!                filename, new_filename
-//!            );
-//!        } else if operation == "decrypt" && args.len() == 4 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let keyfile = PathBuf::from(&args[3]);
-//!            println!("Decrypting File {:?}", &filename);
-//!            println!("With Keyfile: {:?}", &keyfile);
-//!            let key = read_file(&keyfile)?;
-//!            let key: &str = from_utf8(&key)?;
-//!            let filename_two = &filename.clone();
-//!            let filename_decrypted: &str =
-//!                    &filename_two.to_str().unwrap().replace("crpt", "plaintext");
-//!            let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
-//!            let ciphertext = read_file(&filename)?;
-//!            //println!("Ciphertext read from file: {:?}", &ciphertext);
-//!            //println!("Decrypted");
-//!            let plaintext: Vec<u8> = decrypt_file_chacha(ciphertext, &key)?;
-//!            save_file(plaintext, &filename_decrypted_path)?;
-//!            println!(
-//!                "Successfully decrypted file {:?} to {:?}",
-//!                filename, filename_decrypted
-//!            );
-//!        } else if operation == "decrypt_aes" && args.len() == 4 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let keyfile = PathBuf::from(&args[3]);
-//!            println!("Decrypting File {:?}", &filename);
-//!            println!("With Keyfile: {:?}", &keyfile);
-//!            let key = read_file(&keyfile)?;
-//!            let key: &str = from_utf8(&key)?;
-//!            let filename_two = &filename.clone();
-//!            let filename_decrypted: &str =
-//!                    &filename_two.to_str().unwrap().replace("crpt", "plaintext");
-//!            let filename_decrypted_path: PathBuf = PathBuf::from(filename_decrypted);
-//!            let ciphertext = read_file(&filename)?;
-//!            //println!("Ciphertext read from file: {:?}", &ciphertext);
-//!            //println!("Decrypted");
-//!            let plaintext: Vec<u8> = decrypt_file_aes(ciphertext, &key)?;
-//!            save_file(plaintext, &filename_decrypted_path)?;
-//!            println!(
-//!                "Successfully decrypted file {:?} to {:?}",
-//!                filename, filename_decrypted
-//!            );
-//!        } else if operation == "create-key" && args.len() == 3 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            println!("Create Keyfile {:?}", filename);
-//!            create_key(&filename)?;
-//!            println!("Keyfile {:?} created", filename);
-//!        } else if operation == "hash" && args.len() == 3 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let hash = get_blake3_hash(&filename)?;
-//!            println!("File: {:?}. BLAKE3 hash: {:?}", filename, hash);
-//!        } else if operation == "hash_sha256" && args.len() == 3 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let hash = get_sha256_hash(&filename)?;
-//!            println!("File: {:?}. SHA256 hash: {:?}", filename, hash);
-//!        } else if operation == "hash_sha512" && args.len() == 3 {
-//!            let filename = PathBuf::from(&args[2]);
-//!            let hash = get_sha512_hash(&filename)?;
-//!            println!("File: {:?}. SHA512 hash: {:?}", filename, hash);
-//!        }
-//!    } else {
-//!        println!(
-//!            r#"Use "encrypt filename-to_encrypt filename-keyfile" to encrypt a file using XChaCha20Poly1305 or
-//!            "encrypt_aes filename-to_encrypt filename-keyfile" to encrypt a file using AES-GCM-SIV or
-//!            "decrypt filename-to_decrypt filename-keyfile" to decrypt a file using XChaCha20Poly1305 or
-//!            "decrypt_aes filename-to_decrypt filename-keyfile" to decrypt a file using AES-GCM-SIV or
-//!            "create-key filename-keyfile" to create a new random  keyfile or
-//!            "hash filename" (using BLAKE3) to calculate the BLAKE3 hash for a file or
-//!            "hash_sha256 filename" to calculate the SHA256 hash for a file or
-//!            "hash_sha512 filename" ro calculate the SHA512 hash for a file"#
-//!        );
-//!        println!(r#"Example: "encrypt text.txt key.file""#);
-//!    }
-//!    Ok(())
-//!}
-//! ```
 
 // Warning: Don't use for anything important! This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 //
@@ -152,28 +22,35 @@
 //
 // Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //
-// Either generate a keyfile via "cargo run create-key key.file" or use own 32-long char-utf8 password in a keyfile.
+// Generate a new key.file on first run (you can also manually add keys).
 //
-// "cargo run encrypt .example.file .key.file" will create a new (encrypted) file "example.file.crypt" in the same directory.
+// Encrypting "example.file" will create a new (encrypted) file "example.file.crpt" in the same directory.
 //
-// "cargo run decrypt example.file.crypt key.file" will create a new (decrypted) file "example.file" in the same directory.
+// Decrypting "example.file.crpt" will create a new (decrypted) file "example.file" in the same directory.
 //
 // Both encrypt and decrypt override existing files!
 //
 // Calculate hash using BLAKE3 (argument "hash", recommended), SHA256 (argument "hash_sha256") or SHA512 (argument "hash_sha512")
 
-use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
-use aes_gcm_siv::Aes256GcmSiv;
-use chacha20poly1305::XChaCha20Poly1305;
-use rand::distributions::Alphanumeric;
-use rand::rngs::OsRng;
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256, Sha512};
-use std::fs::File;
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+use rand::distributions::Alphanumeric;
+use rand::rngs::OsRng;
+use rand::Rng;
+
+use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
+use aes_gcm_siv::Aes256GcmSiv;
+use chacha20poly1305::XChaCha20Poly1305;
+
+use sha2::{Digest, Sha256, Sha512};
+
+use serde::{Deserialize, Serialize};
+
+//Struct to store ciphertext, nonce and ciphertext.len() in file and to read it from file
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct Cipher {
     len: usize,
@@ -181,96 +58,21 @@ struct Cipher {
     ciphertext: Vec<u8>,
 }
 
-/// Reads file from same folder as Vec<u8>. Returns result.
+/// Encrypts cleartext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result(ciphertext as Vec<u8>).
+///
 /// # Examples
 ///
 /// ```
-/// let path: &str = "test.file";
-/// let content_read: Vec<u8> = read_file(&path).unwrap();
-/// ```
-pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut f = File::open(path)?;
-    let mut buffer: Vec<u8> = Vec::new();
-
-    // read the whole file
-    f.read_to_end(&mut buffer)?;
-    //println!("{:?}", from_utf8(&buffer)?);
-    Ok(buffer)
-}
-
-/// Saves file to same folder. Returns result
-/// # Examples
-///
-/// ```
-/// let new_filename: String = filename.to_owned() + ".crpt";
-/// save_file(ciphertext, &new_filename).unwrap();
-/// ```
-pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
-    let mut file = File::create(path)?;
-    file.write_all(&data)?;
-    Ok(())
-}
-
-/// Creates a new key from given charset. Does not use crypto_rand at this time. Returns result.
-/// # Examples
-///
-/// ```
-/// let filename = PathBuf::from("test.file")";
-/// create_key(&filename).unwrap();
-/// ```
-pub fn create_key(path: &PathBuf) -> std::io::Result<()> {
-    let key: String = OsRng
-        .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<String>();
-
-    let mut file = File::create(path)?;
-    file.write_all(&key.as_bytes())?;
-    Ok(())
-}
-
-/// Encrypts cleartext (Vec<u8>) into ciphertext (Vec<u8>) using provided key from keyfile. Returns result.
-/// # Examples
-///
-/// ```
+/// use enc_file::{encrypt_chacha, decrypt_chacha};
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
 /// let text_vec = text.to_vec();
-/// let ciphertext: Vec<u8> = encrypt_file_aes(text_vec, key).unwrap();
+/// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
+/// assert_ne!(&ciphertext, &text);
+/// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
+/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
-pub fn encrypt_file_aes(
-    cleartext: Vec<u8>,
-    key: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(&key);
-    let rand_string: String = OsRng
-        .sample_iter(&Alphanumeric)
-        .take(12)
-        .collect::<String>();
-    let nonce = GenericArray::from_slice(rand_string.as_bytes());
-    let ciphertext: Vec<u8> = aead
-        .encrypt(nonce, cleartext.as_ref())
-        .expect("encryption failure!");
-    let ciphertext_to_send = Cipher {
-        len: ciphertext.len(),
-        rand_string,
-        ciphertext,
-    };
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
-    Ok(encoded)
-}
-
-/// Encrypts cleartext (Vec<u8>) into ciphertext (Vec<u8>) using XChaCha20Poly1305 with provided key from keyfile. Returns result.
-/// # Examples
-///
-/// ```
-/// let text = b"This a test";
-/// let key: &str = "an example very very secret key.";
-/// let text_vec = text.to_vec();
-/// let ciphertext: Vec<u8> = encrypt_file_chacha(text_vec, key).unwrap();
-/// ```
-pub fn encrypt_file_chacha(
+pub fn encrypt_chacha(
     cleartext: Vec<u8>,
     key: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -293,15 +95,87 @@ pub fn encrypt_file_chacha(
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) into cleartext (Vec<u8>) using provided key from keyfile. Returns result.
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result(cleartext as Vec<u8>).
+///
 /// # Examples
 ///
 /// ```
+/// use enc_file::{encrypt_chacha, decrypt_chacha};
+/// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
-/// let plaintext: Vec<u8> = decrypt_file_aes(ciphertext, key).unwrap();
+/// let text_vec = text.to_vec();
+/// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
+/// assert_ne!(&ciphertext, &text);
+/// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
-pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let aead = XChaCha20Poly1305::new(&key);
+
+    let decoded: Cipher = bincode::deserialize(&enc[..])?;
+    let (ciphertext2, len_ciphertext, rand_string2) =
+        (decoded.ciphertext, decoded.len, decoded.rand_string);
+    if ciphertext2.len() != len_ciphertext {
+        panic!("length of received ciphertext not ok")
+    };
+    let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    let plaintext: Vec<u8> = aead
+        .decrypt(nonce, ciphertext2.as_ref())
+        .expect("decryption failure!");
+    //println!("{:?}", std::str::from_utf8(&plaintext).unwrap());
+    Ok(plaintext)
+}
+
+// Encrypts cleartext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result(ciphertext as Vec<u8>).
+///
+/// # Examples
+///
+/// ```
+/// use enc_file::{encrypt_aes, decrypt_aes};
+/// let text = b"This a test";
+/// let key: &str = "an example very very secret key.";
+/// let text_vec = text.to_vec();
+/// let ciphertext = encrypt_aes(text_vec, key).unwrap();
+/// assert_ne!(&ciphertext, &text);
+/// let plaintext = decrypt_aes(ciphertext, key).unwrap();
+/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+/// ```
+pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let aead = Aes256GcmSiv::new(&key);
+    let rand_string: String = OsRng
+        .sample_iter(&Alphanumeric)
+        .take(12)
+        .collect::<String>();
+    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let ciphertext: Vec<u8> = aead
+        .encrypt(nonce, cleartext.as_ref())
+        .expect("encryption failure!");
+    let ciphertext_to_send = Cipher {
+        len: ciphertext.len(),
+        rand_string,
+        ciphertext,
+    };
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    Ok(encoded)
+}
+
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result(cleartext as Vec<u8>).
+///
+/// # Examples
+///
+/// ```
+/// use enc_file::{encrypt_aes, decrypt_aes};
+/// let text = b"This a test";
+/// let key: &str = "an example very very secret key.";
+/// let text_vec = text.to_vec();
+/// let ciphertext = encrypt_aes(text_vec, key).unwrap();
+/// assert_ne!(&ciphertext, &text);
+/// let plaintext = decrypt_aes(ciphertext, key).unwrap();
+/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+/// ```
+pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
     let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
@@ -318,43 +192,63 @@ pub fn decrypt_file_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std:
     Ok(plaintext)
 }
 
-/// Decrypts ciphertext (Vec<u8>) into cleartext (Vec<u8>) using XChaCha20Poly1305 with provided key from keyfile. Returns result.
+/// Reads userinput from stdin and returns it as String. Returns result.
+pub fn get_input_string() -> Result<String, Box<dyn std::error::Error>> {
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let trimmed = input.trim().to_string();
+    Ok(trimmed)
+}
+
+/// Reads file from same folder as Vec<u8>. Returns result.
 /// # Examples
 ///
 /// ```
-/// let key: &str = "an example very very secret key.";
-/// let plaintext: Vec<u8> = decrypt_file_chacha(ciphertext, key).unwrap();
-/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+/// use enc_file::read_file;
+/// use std::path::PathBuf;
+/// let path: PathBuf = PathBuf::from("cargo.toml");
+/// let content_read: Vec<u8> = read_file(&path).unwrap();
 /// ```
-pub fn decrypt_file_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(&key);
-    let decoded: Cipher = bincode::deserialize(&enc[..])?;
-    let (ciphertext2, len_ciphertext, rand_string2) =
-        (decoded.ciphertext, decoded.len, decoded.rand_string);
-    if ciphertext2.len() != len_ciphertext {
-        panic!("length of received ciphertext not ok")
-    };
-    let nonce = GenericArray::from_slice(rand_string2.as_bytes());
-    let plaintext: Vec<u8> = aead
-        .decrypt(nonce, ciphertext2.as_ref())
-        .expect("decryption failure!");
-    //println!("{:?}", std::str::from_utf8(&plaintext).unwrap());
-    Ok(plaintext)
+pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut f = File::open(path)?;
+    let mut buffer: Vec<u8> = Vec::new();
+
+    // read the whole file
+    f.read_to_end(&mut buffer)?;
+    //println!("{:?}", from_utf8(&buffer)?);
+    Ok(buffer)
+}
+
+/// Saves file to same folder. Returns result
+/// # Examples
+///
+/// ```
+/// use enc_file::save_file;
+/// use std::path::PathBuf;
+/// use std::fs::remove_file;
+/// let path: PathBuf = PathBuf::from("test123.testxyz");
+/// let ciphertext: Vec<u8> = vec![1 as u8, 2 as u8];
+/// save_file(ciphertext, &path).unwrap();
+/// remove_file(&path).unwrap(); //remove file created for this text
+/// ```
+pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
+    let mut file = File::create(path)?;
+    file.write_all(&data)?;
+    Ok(())
 }
 
 /// Get BLAKE3 Hash from file. Returns result.
 /// # Examples
 ///
 /// ```
-/// let filename = "cargo.toml";
-/// let hash1 = get_blake3_hash(&filename).unwrap();
-/// let hash2 = get_blake3_hash(&filename).unwrap();
-/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// use std::path::PathBuf;
+/// use enc_file::{get_blake3_hash, read_file};
+/// let filename = PathBuf::from("cargo.toml");
+/// let hash1 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
+/// let hash2 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_blake3_hash(path: &PathBuf) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
-    let data = read_file(&path)?;
+pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
     let hash = blake3::hash(&data);
     Ok(hash)
 }
@@ -363,14 +257,14 @@ pub fn get_blake3_hash(path: &PathBuf) -> Result<blake3::Hash, Box<dyn std::erro
 /// # Examples
 ///
 /// ```
-/// let filename = "cargo.toml";
-/// let hash1 = get_sha256_hash(&filename).unwrap();
-/// let hash2 = get_sha256_hash(&filename).unwrap();
-/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// use std::path::PathBuf;
+/// use enc_file::{get_sha256_hash, read_file};
+/// let filename = PathBuf::from("cargo.toml");
+/// let hash1 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
+/// let hash2 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_sha256_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
-    let data = read_file(&path)?;
+pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
     let mut hasher = Sha256::new();
 
@@ -386,14 +280,14 @@ pub fn get_sha256_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Err
 /// # Examples
 ///
 /// ```
-/// let filename = "cargo.toml";
-/// let hash1 = get_sha512_hash(&filename).unwrap();
-/// let hash2 = get_sha512_hash(&filename).unwrap();
-/// println!("File: {}. hash1: {:?}, hash2: {:?}", filename, hash1, hash2);
+/// use std::path::PathBuf;
+/// use enc_file::{get_sha512_hash, read_file};
+/// let filename = PathBuf::from("cargo.toml");
+/// let hash1 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
+/// let hash2 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
 /// assert_eq!(hash1, hash2);
 /// ```
-pub fn get_sha512_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
-    let data = read_file(&path)?;
+pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
     let mut hasher = Sha512::new();
 
@@ -403,6 +297,303 @@ pub fn get_sha512_hash(path: &PathBuf) -> Result<String, Box<dyn std::error::Err
     // read hash digest and consume hasher
     let hash = hasher.finalize();
     Ok(format!("{:?}", hash))
+}
+
+/// Allows user to choose desired hashing function. Returns result.
+pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Please choose type of Hash:\n1 Blake3\n2 SHA256\n3 SHA5212");
+    //Get user input
+    let answer = get_input_string()?;
+    if answer == "1" {
+        println!("Calculating Blake3 Hash: please enter file path  ");
+        let path = PathBuf::from(get_input_string()?);
+        let hash = get_blake3_hash(read_file(&path)?)?;
+        println!("Hash Blake3: {:?}", hash);
+    } else if answer == "2" {
+        println!("Calculating SHA256 Hash: please enter file path  ");
+        let path = PathBuf::from(get_input_string()?);
+        let hash = get_sha256_hash(read_file(&path)?)?;
+        println!("Hash SHA256: {:?}", hash);
+    } else if answer == "3" {
+        println!("Calculating SHA512 Hash: please enter file path  ");
+        let path = PathBuf::from(get_input_string()?);
+        let hash = get_sha512_hash(read_file(&path)?)?;
+        println!("Hash SHA512: {:?}", hash);
+    } else {
+        println!("Please choose a corresponding number betwenn 1 and 3")
+    }
+    Ok(())
+}
+
+/// Decrypts file. Taking a keymap "keymap_plaintext" and the choosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
+pub fn decrypt_file(
+    keymap_plaintext: HashMap<String, String>,
+    enc: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if keymap_plaintext.is_empty() {
+        panic!("No keys avaible. Please first add a key.")
+    }
+    println!("Decrypting file: please enter file path  ");
+    let path = PathBuf::from(get_input_string()?);
+    let ciphertext = read_file(&path)?;
+    let new_filename = PathBuf::from(&path.to_str().unwrap().replace(r#".crpt"#, r#""#));
+
+    println!("Existing keynames");
+    for (entry, _) in &keymap_plaintext {
+        println!("{}", entry)
+    }
+    println!("Please provide keyname to decrypt: ");
+    let answer = get_input_string()?;
+    let key = keymap_plaintext
+        .get(&answer)
+        .expect("No key with that name");
+    let plaintext = if enc == "chacha" {
+        decrypt_chacha(ciphertext, key)?
+    } else if enc == "aes" {
+        decrypt_aes(ciphertext, key)?
+    } else {
+        panic!()
+    };
+
+    save_file(plaintext, &new_filename)?;
+    Ok(())
+}
+
+/// Encrypts file. Taking a keymap "keymap_plaintext" and the choosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
+pub fn encrypt_file(
+    keymap_plaintext: HashMap<String, String>,
+    enc: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if keymap_plaintext.is_empty() {
+        panic!("No keys avaible. Please first add a key.")
+    }
+    println!("Encrypting file: please enter file path  ");
+    let path = PathBuf::from(get_input_string()?);
+
+    let new_filename =
+        PathBuf::from(path.clone().into_os_string().into_string().unwrap() + r#".crpt"#);
+
+    println!("Existing keynames");
+    for (entry, _) in &keymap_plaintext {
+        println!("{}", entry)
+    }
+    let cleartext = read_file(&path)?;
+    println!("Please provide keyname to encrypt: ");
+    let answer = get_input_string()?;
+    let key = keymap_plaintext
+        .get(&answer)
+        .expect("No key with that name");
+    let ciphertext = if enc == "chacha" {
+        encrypt_chacha(cleartext, key)?
+    } else if enc == "aes" {
+        encrypt_aes(cleartext, key)?
+    } else {
+        panic!()
+    };
+
+    save_file(ciphertext, &new_filename)?;
+    Ok(())
+}
+
+/// Removes choosen key from keymap. Taking a keymap "keymap_plaintext" and user provided password.
+pub fn remove_key(
+    mut keymap_plaintext: HashMap<String, String>,
+    password: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if keymap_plaintext.is_empty() {
+        panic!("No keys avaible. Please first add a key.")
+    }
+    println!("Existing keynames");
+    for (entry, _) in &keymap_plaintext {
+        println!("{}", entry)
+    }
+    println!("Please provide keyname to delete: ");
+    let answer = get_input_string()?;
+
+    match keymap_plaintext.remove(&answer) {
+        Some(_) => println!("Key removed"),
+        None => println!("No key of this name"),
+    }
+
+    //Check if there is a key in keymap
+    if keymap_plaintext.is_empty() {
+        println!("Warning: No keys available. Please create a new entry")
+    }
+    let encoded: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password)?;
+    fs::write("key.file", encoded)?;
+    Ok(())
+}
+
+/// Adds key to keymap. Taking a keymap "keymap_plaintext" and user provided password.
+pub fn add_key(
+    mut keymap_plaintext: HashMap<String, String>,
+    password: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Please choose name for new key: ");
+
+    //Ask for a name to be associated with the new key
+    let key_name = get_input_string()?;
+
+    //Ask if random key should be generate or key will be provided by user
+    println!("Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8");
+    let answer = get_input_string()?;
+    let mut key = String::new();
+    if answer == "r" {
+        let key_rand: String = OsRng
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .collect::<String>();
+        key.push_str(&key_rand);
+    } else if answer == "m" {
+        println!("Please enter key. Must be valid 32-long char-utf8");
+        let answer = get_input_string()?;
+        // String is always valid utf8, len() still needs to be checked
+        if answer.len() == 32 {
+            key.push_str(&answer);
+        } else {
+            println!("Please provide a valid 32-long char-utf8")
+        }
+    } else {
+        //to do
+        panic!();
+    }
+    keymap_plaintext.insert(key_name.trim().to_string(), key.trim().to_string());
+
+    let encoded: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password)?;
+    fs::write("key.file", encoded)?;
+    Ok(())
+}
+
+/// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Resturns result (password, keyfile and bool (true if new keyfile way created)).
+pub fn create_new_keyfile(
+) -> Result<(String, HashMap<String, String>, bool), Box<dyn std::error::Error>> {
+    println!("No keyfile found. Create a new one? Y/N");
+    let answer = get_input_string()?;
+    if answer == "y" {
+        //Enter a password to encrypt key.file
+        println!("Please enter a password (lenth > 8) to encrypt the keyfile: ");
+
+        let mut password = String::new();
+        io::stdin()
+            .read_line(&mut password)
+            .expect("Failed to read line");
+        if password.len() < 8 {
+            panic!("Password too short!")
+        }
+        let mut file = File::create("key.file")?;
+        println!("Please choose name for new key: ");
+
+        //Ask for a name to be associated with the new key
+        let key_name = get_input_string()?;
+
+        //Ask if random key should be generate or key will be provided by user
+        println!("Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8");
+        let answer = get_input_string()?;
+        let mut key = String::new();
+        if answer == "r" {
+            let key_rand: String = OsRng
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .collect::<String>();
+            key.push_str(&key_rand);
+        } else if answer == "m" {
+            println!("Please enter key. Must be valid 32-long char-utf8");
+            let answer = get_input_string()?;
+            // String is always valid utf8, len() still needs to be checked
+            if answer.len() == 32 {
+                key.push_str(&answer);
+            } else {
+                println!("Please provide a valid 32-long char-utf8")
+            }
+        } else {
+            //to do
+            panic!();
+        }
+
+        let mut new_key_map = HashMap::new();
+
+        new_key_map.insert(key_name, key);
+        let encoded: Vec<u8> = encrypt_hashmap(new_key_map.clone(), &password)?;
+
+        file.write_all(&encoded)?;
+        Ok((password, new_key_map, true))
+    } else {
+        //TO DO
+        panic!()
+    }
+}
+
+/// Read keyfile to keymap. Asks for userpassword. Returns result (password, keymap and bool(false as no new keymap was created))
+pub fn read_keyfile() -> Result<(String, HashMap<String, String>, bool), Box<dyn std::error::Error>>
+{
+    println!("Enter password: ");
+    let password = get_input_string()?;
+    let hashed_password = blake3::hash(&password.trim().as_bytes());
+    //println!("{:?}", hashed_password);
+    let mut f = File::open("key.file").expect("Could not open key.file");
+    let mut buffer = Vec::new();
+    f.read_to_end(&mut buffer)?;
+    let key = GenericArray::clone_from_slice(hashed_password.as_bytes());
+
+    let decoded: Cipher = bincode::deserialize(&buffer[..])?;
+    let (ciphertext, len_ciphertext, rand_string) =
+        (decoded.ciphertext, decoded.len, decoded.rand_string);
+    if ciphertext.len() != len_ciphertext {
+        panic!("length of received ciphertext not ok")
+    };
+    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let aead = XChaCha20Poly1305::new(&key);
+
+    let plaintext: Vec<u8> = aead
+        .decrypt(nonce, ciphertext.as_ref())
+        .expect("decryption failure!");
+    let keymap_plaintext: HashMap<String, String> = bincode::deserialize(&plaintext[..])?;
+    println!("Keys found in key.file:\n{:?}\n", &keymap_plaintext);
+    Ok((password, keymap_plaintext, false))
+}
+
+/// Encrypt a given hashmap with a given password using ChaCha20Poly1305. Returns result (Vec<u8>)
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
+/// use chacha20poly1305::XChaCha20Poly1305;
+/// use enc_file::{encrypt_hashmap};
+/// use serde::{Deserialize, Serialize};
+/// let mut keymap_plaintext: HashMap<String, String> = HashMap::new();
+/// keymap_plaintext.insert("Hello".to_string(), "world".to_string());
+/// let password: String = "Password".to_string();
+/// let encrypted: Vec<u8> = encrypt_hashmap(keymap_plaintext.clone(), &password).unwrap();
+/// //test that encrypting 2 times results in different Vec<u8>
+/// let encrypted2: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password).unwrap();
+/// assert_ne!(encrypted, encrypted2);
+/// ```
+pub fn encrypt_hashmap(
+    keymap_plaintext: HashMap<String, String>,
+    password: &String,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).unwrap();
+
+    //encrypt Hashmap with keys
+    let rand_string: String = OsRng
+        .sample_iter(&Alphanumeric)
+        .take(24)
+        .collect::<String>();
+    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let hashed_password = blake3::hash(&password.trim().as_bytes());
+    let key = GenericArray::clone_from_slice(hashed_password.as_bytes());
+    let aead = XChaCha20Poly1305::new(&key);
+    let ciphertext: Vec<u8> = aead
+        .encrypt(nonce, encoded.as_ref())
+        .expect("encryption failure!");
+    let ciphertext_to_send = Cipher {
+        len: ciphertext.len(),
+        rand_string,
+        ciphertext,
+    };
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    Ok(encoded)
 }
 
 #[cfg(test)]
@@ -424,9 +615,9 @@ mod tests {
         let text = b"This a test";
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
-        let ciphertext = encrypt_file_aes(text_vec, key).unwrap();
+        let ciphertext = encrypt_aes(text_vec, key).unwrap();
         assert_ne!(&ciphertext, &text);
-        let plaintext = decrypt_file_aes(ciphertext, key).unwrap();
+        let plaintext = decrypt_aes(ciphertext, key).unwrap();
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
     }
 
@@ -435,9 +626,9 @@ mod tests {
         let text = b"This a test";
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
-        let ciphertext = encrypt_file_chacha(text_vec, key).unwrap();
+        let ciphertext = encrypt_chacha(text_vec, key).unwrap();
         assert_ne!(&ciphertext, &text);
-        let plaintext = decrypt_file_chacha(ciphertext, key).unwrap();
+        let plaintext = decrypt_chacha(ciphertext, key).unwrap();
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
     }
 
@@ -450,15 +641,15 @@ mod tests {
         let mut i = 1;
         while i < 1000 {
             let key: String = OsRng
-            .sample_iter(&Alphanumeric)
-            .take(32)
-            .collect::<String>();
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .collect::<String>();
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-            let ciphertext1 = encrypt_file_chacha(content.clone(), &key).unwrap();
-            let ciphertext2 = encrypt_file_chacha(content.clone(), &key).unwrap();
-            let ciphertext3 = encrypt_file_chacha(content.clone(), &key).unwrap();
-            let ciphertext4 = encrypt_file_chacha(content.clone(), &key).unwrap();
-            let ciphertext5 = encrypt_file_chacha(content, &key).unwrap();
+            let ciphertext1 = encrypt_chacha(content.clone(), &key).unwrap();
+            let ciphertext2 = encrypt_chacha(content.clone(), &key).unwrap();
+            let ciphertext3 = encrypt_chacha(content.clone(), &key).unwrap();
+            let ciphertext4 = encrypt_chacha(content.clone(), &key).unwrap();
+            let ciphertext5 = encrypt_chacha(content, &key).unwrap();
             assert_ne!(&ciphertext1, &ciphertext2);
             assert_ne!(&ciphertext1, &ciphertext3);
             assert_ne!(&ciphertext1, &ciphertext4);
@@ -481,15 +672,15 @@ mod tests {
         let mut i = 1;
         while i < 1000 {
             let key: String = OsRng
-            .sample_iter(&Alphanumeric)
-            .take(32)
-            .collect::<String>();
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .collect::<String>();
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-            let ciphertext1 = encrypt_file_aes(content.clone(), &key).unwrap();
-            let ciphertext2 = encrypt_file_aes(content.clone(), &key).unwrap();
-            let ciphertext3 = encrypt_file_aes(content.clone(), &key).unwrap();
-            let ciphertext4 = encrypt_file_aes(content.clone(), &key).unwrap();
-            let ciphertext5 = encrypt_file_aes(content, &key).unwrap();
+            let ciphertext1 = encrypt_aes(content.clone(), &key).unwrap();
+            let ciphertext2 = encrypt_aes(content.clone(), &key).unwrap();
+            let ciphertext3 = encrypt_aes(content.clone(), &key).unwrap();
+            let ciphertext4 = encrypt_aes(content.clone(), &key).unwrap();
+            let ciphertext5 = encrypt_aes(content, &key).unwrap();
             assert_ne!(&ciphertext1, &ciphertext2);
             assert_ne!(&ciphertext1, &ciphertext3);
             assert_ne!(&ciphertext1, &ciphertext4);
@@ -507,24 +698,24 @@ mod tests {
     #[test]
     fn test_hash_blake3() {
         let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_blake3_hash(&filename).unwrap();
-        let hash2 = get_blake3_hash(&filename).unwrap();
+        let hash1 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
+        let hash2 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
         assert_eq!(hash1, hash2);
     }
 
     #[test]
     fn test_hash_sha256() {
         let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_sha256_hash(&filename).unwrap();
-        let hash2 = get_sha256_hash(&filename).unwrap();
+        let hash1 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
+        let hash2 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
         assert_eq!(hash1, hash2);
     }
 
     #[test]
     fn test_hash_sha512() {
         let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_sha512_hash(&filename).unwrap();
-        let hash2 = get_sha512_hash(&filename).unwrap();
+        let hash1 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
+        let hash2 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
         assert_eq!(hash1, hash2);
     }
 
@@ -541,9 +732,9 @@ mod tests {
                 .collect::<String>();
 
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-            let ciphertext = encrypt_file_chacha(content.clone(), &key).unwrap();
+            let ciphertext = encrypt_chacha(content.clone(), &key).unwrap();
             assert_ne!(&ciphertext, &content);
-            let plaintext = decrypt_file_chacha(ciphertext, &key).unwrap();
+            let plaintext = decrypt_chacha(ciphertext, &key).unwrap();
             assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
 
             i += 1;
@@ -563,9 +754,9 @@ mod tests {
                 .collect::<String>();
 
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
-            let ciphertext = encrypt_file_aes(content.clone(), &key).unwrap();
+            let ciphertext = encrypt_aes(content.clone(), &key).unwrap();
             assert_ne!(&ciphertext, &content);
-            let plaintext = decrypt_file_aes(ciphertext, &key).unwrap();
+            let plaintext = decrypt_aes(ciphertext, &key).unwrap();
             assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
 
             i += 1;
