@@ -1,6 +1,7 @@
 # Enc-File
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
 **Warning: Don't use for anything important, use VeraCrypt or similar instead.**
+
 This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 
 ## Main menu:
