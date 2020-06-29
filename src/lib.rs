@@ -19,13 +19,23 @@
 //!
 //! ```
 //! use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
+//!
+//! //Plaintext to encrypt
 //! let text = b"This a test";
+//! //Provide key. Key will normally be chosen from keymap and provided to the encrypt_chacha() function
 //! let key: &str = "an example very very secret key.";
+//! //Convert text to Vec<u8>
 //! let text_vec = text.to_vec();
+//!
+//! //Encrypt text
 //! let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-//! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
+//! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
+//! //Check that plaintext != ciphertext
 //! assert_ne!(&ciphertext, &text);
+//!
+//! //Decrypt ciphertext to plaintext
 //! let plaintext = decrypt_chacha(ciphertext, key).unwrap();
+//! //Check that text == plaintext
 //! assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 //! ```
 //!
@@ -46,7 +56,30 @@
 //
 // Both encrypt and decrypt override existing files!
 //
-// Calculate hash using BLAKE3 (argument "hash", recommended), SHA256 (argument "hash_sha256") or SHA512 (argument "hash_sha512")
+//
+// # Examples
+//
+// ```
+// use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
+//
+// //Plaintext to encrypt
+// let text = b"This a test";
+// //Provide key. Key will normally be chosen from keymap and provided to the encrypt_chacha() function
+// let key: &str = "an example very very secret key.";
+// //Convert text to Vec<u8>
+// let text_vec = text.to_vec();
+//
+// //Encrypt text
+// let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
+// //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
+// //Check that plaintext != ciphertext
+// assert_ne!(&ciphertext, &text);
+//
+// //Decrypt ciphertext to plaintext
+// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
+// //Check that text == plaintext
+// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+// ```
 
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -350,7 +383,12 @@ pub fn decrypt_file(
     println!("Decrypting file: please enter file path  ");
     let path = PathBuf::from(get_input_string()?);
     let ciphertext = read_file(&path)?;
-    let new_filename = PathBuf::from(&path.to_str().expect("Unable to parse filename!").replace(r#".crpt"#, r#""#));
+    let new_filename = PathBuf::from(
+        &path
+            .to_str()
+            .expect("Unable to parse filename!")
+            .replace(r#".crpt"#, r#""#),
+    );
 
     println!("Existing keynames");
     for (entry, _) in &keymap_plaintext {
@@ -384,8 +422,13 @@ pub fn encrypt_file(
     println!("Encrypting file: please enter file path  ");
     let path = PathBuf::from(get_input_string()?);
 
-    let new_filename =
-        PathBuf::from(path.clone().into_os_string().into_string().expect("Unable to parse filename!") + r#".crpt"#);
+    let new_filename = PathBuf::from(
+        path.clone()
+            .into_os_string()
+            .into_string()
+            .expect("Unable to parse filename!")
+            + r#".crpt"#,
+    );
 
     println!("Existing keynames");
     for (entry, _) in &keymap_plaintext {
@@ -606,7 +649,8 @@ pub fn encrypt_hashmap(
         rand_string,
         ciphertext,
     };
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).expect("Unable to encode keymap!");
+    let encoded: Vec<u8> =
+        bincode::serialize(&ciphertext_to_send).expect("Unable to encode keymap!");
     Ok(encoded)
 }
 
@@ -775,5 +819,25 @@ mod tests {
 
             i += 1;
         }
+    }
+    #[test]
+    fn test_example() {
+        let text = b"This a test"; //Text to encrypt
+        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
+        let text_vec = text.to_vec(); //Convert text to Vec<u8>
+        let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
+        //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
+        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
+        let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
+        assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
+    }
+
+    #[test]
+    fn test_example_hash() {
+        let test = b"Calculating the BLAKE3 Hash of this text";
+        let test_vec = test.to_vec(); //Convert text to Vec<u8>
+        let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
+        let hash2 = get_blake3_hash(test_vec).unwrap();
+        assert_eq!(hash1, hash2); //Make sure hash1 == hash2
     }
 }

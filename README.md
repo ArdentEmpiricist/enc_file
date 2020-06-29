@@ -16,17 +16,31 @@ Encrypted files are (and have to be) stored as .crpt.
 Both encrypt and decrypt override existing files!
 
 # Examples
-
+Encrypt/decrypt
 ```rust
 use enc_file::{encrypt_chacha, decrypt_chacha};
-let text = b"This a test";
-let key: &str = "an example very very secret key.";
-let text_vec = text.to_vec();
+
+let text = b"This a test"; //Plaintext to encrypt
+let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
+let text_vec = text.to_vec(); //Convert text to Vec<u8>
+
 let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
 //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
-assert_ne!(&ciphertext, &text);
-let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
+
+let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
+assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
+```
+
+Calculate Blake3 Hash
+```rust
+use enc_file::{get_blake3_hash};
+
+let test = b"Calculating the BLAKE3 Hash of this text";
+let test_vec = test.to_vec(); //Convert text to Vec<u8>
+let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
+let hash2 = get_blake3_hash(test_vec).unwrap();
+assert_eq!(hash1, hash2); //Make sure hash1 == hash2
 ```
 
 Issues and feedback are highly appreciated. 
