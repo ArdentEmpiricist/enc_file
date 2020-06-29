@@ -1,7 +1,9 @@
 # Enc-File
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
 
-Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
+Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-256-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
+
+XChaCha20Poly1305 and AES256-GCM-SIV offer higher protection against nonce reuse as compared to ChaCha20Poly1305 oder AES-GCM.
 
 Encrypted files are (and have to be) stored as .crpt.
 
@@ -20,10 +22,10 @@ This crate hasn't been audited or reviewed in any sense. I created it to easily 
 Please enter the corresponding number to continue:
 1 Add new key
 2 Remove key
-3 Encrypt file using ChaCha20Poly1305
-4 Decrypt file using ChaCha20Poly1305
-5 Encrypt file using AES256-GCM-SIV
-6 Decrypt file using AES256-GCM-SIV
+3 Encrypt file using XChaCha20Poly1305
+4 Decrypt file using XChaCha20Poly1305
+5 Encrypt file using AES-256-GCM-SIV
+6 Decrypt file using AES-256-GCM-SIV
 7 Calculate Hash
 ```
 

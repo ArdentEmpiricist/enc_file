@@ -42,7 +42,7 @@
 //!
 //! ```
 //! use enc_file::{get_blake3_hash};
-//! 
+//!
 //! let test = b"Calculating the BLAKE3 Hash of this text";
 //! let test_vec = test.to_vec(); //Convert text to Vec<u8>
 //! let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
@@ -130,7 +130,7 @@ struct Cipher {
     ciphertext: Vec<u8>,
 }
 
-/// Encrypts cleartext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result (ciphertext as Vec<u8>).
+/// Encrypts cleartext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Returns result (ciphertext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -150,6 +150,7 @@ pub fn encrypt_chacha(
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
+    //generate random nonce
     let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(24)
@@ -158,16 +159,18 @@ pub fn encrypt_chacha(
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
         .expect("encryption failure!");
+    //ciphertext_to_send includes the length of the ciphertext (to confirm upon decryption), the nonce (needed to decrypt) and the actual ciphertext
     let ciphertext_to_send = Cipher {
         len: ciphertext.len(),
         rand_string,
         ciphertext,
     };
+    //serialize using bincode. Facilitates storing in file.
     let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result (cleartext as Vec<u8>).
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Returns result (cleartext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -185,13 +188,16 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
 
+    //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
+    //check if included length of ciphertext == actual length of ciphertext
     if ciphertext2.len() != len_ciphertext {
         panic!("length of received ciphertext not ok")
     };
     let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    //decrypt to plaintext
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
         .expect("decryption failure!");
@@ -215,6 +221,7 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
 pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
+    //generate random nonce
     let rand_string: String = OsRng
         .sample_iter(&Alphanumeric)
         .take(12)
@@ -223,11 +230,13 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
         .expect("encryption failure!");
+    //ciphertext_to_send includes the length of the ciphertext (to confirm upon decryption), the nonce (needed to decrypt) and the actual ciphertext
     let ciphertext_to_send = Cipher {
         len: ciphertext.len(),
         rand_string,
         ciphertext,
     };
+    //serialize using bincode. Facilitates storing in file.
     let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
     Ok(encoded)
 }
@@ -249,13 +258,16 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
 pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
+    //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
+    //check if included length of ciphertext == actual length of ciphertext
     if ciphertext2.len() != len_ciphertext {
         panic!("length of received ciphertext not ok")
     };
     let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    //decrypt to plaintext
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
         .expect("decryption failure!");
@@ -849,7 +861,7 @@ mod tests {
         let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
         let text_vec = text.to_vec(); //Convert text to Vec<u8>
         let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-        //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
+                                                                 //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
         assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
         let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext

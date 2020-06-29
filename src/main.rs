@@ -41,7 +41,7 @@
 //!
 //! ```
 //! use enc_file::{get_blake3_hash};
-//! 
+//!
 //! let test = b"Calculating the BLAKE3 Hash of this text";
 //! let test_vec = test.to_vec(); //Convert text to Vec<u8>
 //! let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
@@ -105,7 +105,6 @@
 // assert_eq!(hash1, hash2); //Make sure hash1 == hash2
 // ```
 
-
 use enc_file::{
     add_key, choose_hashing_function, create_new_keyfile, decrypt_file, encrypt_file,
     get_input_string, read_keyfile, remove_key,
@@ -114,7 +113,7 @@ use enc_file::{
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using ChaCha20Poly1305\n4 Decrypt file using ChaCha20Poly1305\n5 Encrypt file using AES256-GCM-SIV\n6 Decrypt file using AES256-GCM-SIV\n7 Calculate Hash");
+    println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using XChaCha20Poly1305\n4 Decrypt file using XChaCha20Poly1305\n5 Encrypt file using AES-256-GCM-SIV\n6 Decrypt file using AES-256-GCM-SIV\n7 Calculate Hash");
     //Getting user input
     let answer = get_input_string()?;
     // Creating a Vec with choices needing a password to compare to user input
