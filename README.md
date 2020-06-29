@@ -16,7 +16,7 @@ Encrypted files are (and have to be) stored as .crpt.
 Both encrypt and decrypt override existing files!
 
 # Examples
-Encrypt/decrypt unsing XChaCha20Poly1305 and random nonce
+Encrypt/decrypt using XChaCha20Poly1305 and random nonce
 ```rust
 use enc_file::{encrypt_chacha, decrypt_chacha};
 

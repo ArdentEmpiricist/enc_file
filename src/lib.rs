@@ -70,6 +70,7 @@
 //
 // # Examples
 //
+// Encrypt/decrypt using XChaCha20Poly1305 and random nonce
 // ```
 // use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
 //
@@ -90,6 +91,17 @@
 // let plaintext = decrypt_chacha(ciphertext, key).unwrap();
 // //Check that text == plaintext
 // assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+// ```
+//
+// Calculate Blake3 Hash
+// ```
+// use enc_file::{get_blake3_hash};
+//
+// let test = b"Calculating the BLAKE3 Hash of this text";
+// let test_vec = test.to_vec(); //Convert text to Vec<u8>
+// let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
+// let hash2 = get_blake3_hash(test_vec).unwrap();
+// assert_eq!(hash1, hash2); //Make sure hash1 == hash2
 // ```
 
 use std::collections::HashMap;
