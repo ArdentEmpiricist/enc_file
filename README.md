@@ -2,8 +2,8 @@
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without unsafe code. Warning: Don't use for anything important, use VeraCrypt or similar instead.
 
 ## Main menu:
-Please enter the corresponding number to continue:
 ```
+Please enter the corresponding number to continue:
 1 Add new key
 2 Remove key
 3 Encrypt file using ChaCha20Poly1305
