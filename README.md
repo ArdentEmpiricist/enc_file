@@ -24,6 +24,7 @@ let text = b"This a test"; //Plaintext to encrypt
 let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
 let text_vec = text.to_vec(); //Convert text to Vec<u8>
 
+//Ciphertext stores the len() of encrypted content, the nonce and the actual ciphertext using bincode
 let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
 //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
 assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext

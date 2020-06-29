@@ -28,6 +28,7 @@
 //! let text_vec = text.to_vec();
 //!
 //! //Encrypt text
+//! //Ciphertext stores the len() of encrypted content, the nonce and the actual ciphertext using bincode
 //! let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
 //! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
 //! //Check that plaintext != ciphertext
@@ -37,6 +38,16 @@
 //! let plaintext = decrypt_chacha(ciphertext, key).unwrap();
 //! //Check that text == plaintext
 //! assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+//! ```
+//!
+//! ```
+//! use enc_file::{get_blake3_hash};
+//! 
+//! let test = b"Calculating the BLAKE3 Hash of this text";
+//! let test_vec = test.to_vec(); //Convert text to Vec<u8>
+//! let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
+//! let hash2 = get_blake3_hash(test_vec).unwrap();
+//! assert_eq!(hash1, hash2); //Make sure hash1 == hash2
 //! ```
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
@@ -107,7 +118,7 @@ struct Cipher {
     ciphertext: Vec<u8>,
 }
 
-/// Encrypts cleartext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result(ciphertext as Vec<u8>).
+/// Encrypts cleartext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result (ciphertext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -144,7 +155,7 @@ pub fn encrypt_chacha(
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result(cleartext as Vec<u8>).
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using ChaCha20Poly1305. Returns result (cleartext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -175,7 +186,7 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
     Ok(plaintext)
 }
 
-// Encrypts cleartext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result(ciphertext as Vec<u8>).
+// Encrypts cleartext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result (ciphertext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -209,7 +220,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result(cleartext as Vec<u8>).
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result (cleartext as Vec<u8>).
 ///
 /// # Examples
 ///
