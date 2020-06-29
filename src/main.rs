@@ -1,9 +1,9 @@
 //! # Enc_File
 //!
-//! Encrypt / decrypt files or calculate the HASH from the command line.
+//! Encrypt / decrypt files or calculate hash from the command line.
 //! Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
-//! Breaking change in Version 0.3: Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" and choose "manually".
+//! Breaking change in Version 0.3: Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" -> "manually".
 //!
 //! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
 //!
@@ -11,7 +11,22 @@
 //!
 //! Encrypted files are (and have to be) stored as .crpt.
 //!
+//! Panics at errors making execution impossible.  
+//!
 //! Can be used as library and a binary target. Install via cargo install enc_file
+//! # Examples
+//!
+//! ```
+//! use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
+//! let text = b"This a test";
+//! let key: &str = "an example very very secret key.";
+//! let text_vec = text.to_vec();
+//! let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
+//! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
+//! assert_ne!(&ciphertext, &text);
+//! let plaintext = decrypt_chacha(ciphertext, key).unwrap();
+//! assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+//! ```
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
 //!

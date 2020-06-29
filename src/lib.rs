@@ -1,9 +1,9 @@
 //! # Enc_File
 //!
-//! Encrypt / decrypt files or calculate the HASH from the command line.
+//! Encrypt / decrypt files or calculate hash from the command line.
 //! Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
 //!
-//! Breaking change in Version 0.3: Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" and choose "manually".
+//! Breaking change in Version 0.3: Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" -> "manually".
 //!
 //! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
 //!
@@ -12,6 +12,22 @@
 //! Encrypted files are (and have to be) stored as .crpt.
 //!
 //! Can be used as library and a binary target. Install via cargo install enc_file
+//!
+//! Panics at errors making execution impossible.  
+//!
+//! # Examples
+//!
+//! ```
+//! use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
+//! let text = b"This a test";
+//! let key: &str = "an example very very secret key.";
+//! let text_vec = text.to_vec();
+//! let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
+//! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
+//! assert_ne!(&ciphertext, &text);
+//! let plaintext = decrypt_chacha(ciphertext, key).unwrap();
+//! assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+//! ```
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
 //!
@@ -91,7 +107,7 @@ pub fn encrypt_chacha(
         rand_string,
         ciphertext,
     };
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
     Ok(encoded)
 }
 
@@ -123,7 +139,6 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
         .expect("decryption failure!");
-    //println!("{:?}", std::str::from_utf8(&plaintext).unwrap());
     Ok(plaintext)
 }
 
@@ -157,7 +172,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
         rand_string,
         ciphertext,
     };
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
     Ok(encoded)
 }
 
@@ -178,7 +193,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
 pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
-    let decoded: Cipher = bincode::deserialize(&enc[..]).unwrap();
+    let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
         (decoded.ciphertext, decoded.len, decoded.rand_string);
     if ciphertext2.len() != len_ciphertext {
@@ -188,7 +203,6 @@ pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::erro
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
         .expect("decryption failure!");
-    //println!("{:?}", std::str::from_utf8(&plaintext).unwrap());
     Ok(plaintext)
 }
 
@@ -237,7 +251,7 @@ pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Get BLAKE3 Hash from file. Returns result.
+/// Get BLAKE3 Hash from data. File needs to be read as Vac<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
@@ -253,7 +267,7 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
     Ok(hash)
 }
 
-/// Get SHA256 Hash from file. Returns result.
+/// Get SHA256 Hash from data. File needs to be read as Vac<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
@@ -276,7 +290,7 @@ pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
     Ok(format!("{:?}", hash))
 }
 
-/// Get SHA512 Hash from file. Returns result.
+/// Get SHA512 Hash from data. File needs to be read as Vac<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
@@ -336,7 +350,7 @@ pub fn decrypt_file(
     println!("Decrypting file: please enter file path  ");
     let path = PathBuf::from(get_input_string()?);
     let ciphertext = read_file(&path)?;
-    let new_filename = PathBuf::from(&path.to_str().unwrap().replace(r#".crpt"#, r#""#));
+    let new_filename = PathBuf::from(&path.to_str().expect("Unable to parse filename!").replace(r#".crpt"#, r#""#));
 
     println!("Existing keynames");
     for (entry, _) in &keymap_plaintext {
@@ -371,7 +385,7 @@ pub fn encrypt_file(
     let path = PathBuf::from(get_input_string()?);
 
     let new_filename =
-        PathBuf::from(path.clone().into_os_string().into_string().unwrap() + r#".crpt"#);
+        PathBuf::from(path.clone().into_os_string().into_string().expect("Unable to parse filename!") + r#".crpt"#);
 
     println!("Existing keynames");
     for (entry, _) in &keymap_plaintext {
@@ -573,7 +587,7 @@ pub fn encrypt_hashmap(
     keymap_plaintext: HashMap<String, String>,
     password: &String,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).unwrap();
+    let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).expect("Unable to encode keymap!");
 
     //encrypt Hashmap with keys
     let rand_string: String = OsRng
@@ -592,7 +606,7 @@ pub fn encrypt_hashmap(
         rand_string,
         ciphertext,
     };
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).unwrap();
+    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send).expect("Unable to encode keymap!");
     Ok(encoded)
 }
 
