@@ -40,13 +40,17 @@
 //! ```
 //!
 //! ```
-//! use enc_file::{get_blake3_hash};
+//!use enc_file::{get_blake3_hash};
 //!
-//! let test = b"Calculating the BLAKE3 Hash of this text";
-//! let test_vec = test.to_vec(); //Convert text to Vec<u8>
-//! let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
-//! let hash2 = get_blake3_hash(test_vec).unwrap();
-//! assert_eq!(hash1, hash2); //Make sure hash1 == hash2
+//!let test = b"Calculating the BLAKE3 Hash of this text";
+//!let test_vec = test.to_vec(); //Convert text to Vec<u8>
+//!let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
+//!let hash2 = get_blake3_hash(test_vec).unwrap();
+//!assert_eq!(hash1, hash2); //Make sure hash1 == hash2
+//!let test2 = b"Calculating the BLAKE3 Hash of this text."; //"." added at the end
+//!let test2_vec = test2.to_vec();
+//!let hash3 = get_blake3_hash(test2_vec).unwrap();
+//!assert_ne!(hash1, hash3); //check that the added "." changes the hash
 //! ```
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
