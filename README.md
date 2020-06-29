@@ -7,7 +7,9 @@ Encrypted files are (and have to be) stored as .crpt.
 
 Both encrypt and decrypt override existing files!
 
-To install: clone the repository and build from source or use cargo install enc_file.
+**Panics** at errors making safe execution impossible but functions mostly return results.  
+
+**To install:** clone the repository and build from source or use cargo install enc_file.
 
 **Warning: Don't use for anything important, use VeraCrypt or similar instead.**
 
@@ -25,10 +27,10 @@ Please enter the corresponding number to continue:
 7 Calculate Hash
 ```
 
-*Option to generate a new key.file provided at first run or if no key file is detected. Keyfile needs to reside in program directory.*
+*Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
 ## Breaking changes:
-*Breaking change in Version 0.3:* Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Changed to keymap to work with several keys conveniently. You can import your old keys, using "Add key" -> "manually".
+*Breaking change in Version 0.3:* Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Change to keymap to conveniently work with several keys. You can import your old keys using "Add key" -> "manually".
 
 *Breaking change in Version 0.2:* Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
 
