@@ -32,6 +32,7 @@ let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext t
 assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
 ```
 
+
 Calculate Blake3 Hash
 ```rust
 use enc_file::{get_blake3_hash};
