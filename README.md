@@ -1,6 +1,20 @@
 # Enc-File
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without unsafe code. Warning: Don't use for anything important, use VeraCrypt or similar instead.
 
+## Main menu:
+Please enter the corresponding number to continue:
+```
+1 Add new key
+2 Remove key
+3 Encrypt file using ChaCha20Poly1305
+4 Decrypt file using ChaCha20Poly1305
+5 Encrypt file using AES256-GCM-SIV
+6 Decrypt file using AES256-GCM-SIV
+7 Calculate Hash
+```
+
+*Option to generate a new key.file provided at first run or if no key file is detected. Keyfile needs to reside in program directory.*
+
 This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 
 To install: clone the repository and build from source or use cargo install enc_file.
@@ -15,7 +29,7 @@ Encrypted files are (and have to be) stored as .crpt.
 
 Both encrypt and decrypt override existing files!
 
-# Examples
+## Examples
 Encrypt/decrypt using XChaCha20Poly1305 and random nonce
 ```rust
 use enc_file::{encrypt_chacha, decrypt_chacha};
@@ -45,4 +59,10 @@ let hash2 = get_blake3_hash(test_vec).unwrap();
 assert_eq!(hash1, hash2); //Make sure hash1 == hash2
 ```
 
-Issues and feedback are highly appreciated. 
+## To do:
+- [x] Add encrypted map on harddrive to use several keys
+- [x] Add main menu to guide through the process
+- [ ] Enable command-line arguments
+- [ ] Add option to securely delete files 
+
+**Issues and feedback are highly appreciated.** 
