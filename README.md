@@ -39,7 +39,7 @@ Encrypt/decrypt using XChaCha20Poly1305 and random nonce
 ```rust
 use enc_file::{encrypt_chacha, decrypt_chacha};
 
-let text = b"This a test"; //Plaintext to encrypt
+let text = b"This is a test"; //Plaintext to encrypt
 let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
 let text_vec = text.to_vec(); //Convert text to Vec<u8>
 
