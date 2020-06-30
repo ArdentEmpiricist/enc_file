@@ -290,10 +290,15 @@ pub fn get_input_string() -> Result<String, Box<dyn std::error::Error>> {
 /// # Examples
 ///
 /// ```
-/// use enc_file::read_file;
+/// use enc_file::{read_file, save_file};
 /// use std::path::PathBuf;
-/// let path: PathBuf = PathBuf::from("cargo.toml");
+/// use std::fs::remove_file;
+/// let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/// let path: PathBuf = PathBuf::from("test_abcdefg.file");
+/// save_file(content.clone(), &path).unwrap();
 /// let content_read: Vec<u8> = read_file(&path).unwrap();
+/// remove_file(&path).unwrap(); //remove file created for this test
+/// assert_eq!(content, content_read);
 /// ```
 pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut f = File::open(path)?;
