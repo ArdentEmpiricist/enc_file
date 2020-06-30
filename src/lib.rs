@@ -794,33 +794,33 @@ mod tests {
 
     #[test]
     fn test_hash_blake3() {
-        let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
-        let hash2 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
-        let filename = PathBuf::from("cargo.lock");
-        let hash3 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
+        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+        let hash1 = get_blake3_hash(test.clone()).unwrap();
+        let hash2 = get_blake3_hash(test).unwrap();
+        let hash3 = get_blake3_hash(test2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
 
     #[test]
     fn test_hash_sha256() {
-        let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
-        let hash2 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
-        let filename = PathBuf::from("cargo.lock");
-        let hash3 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
+        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+        let hash1 = get_sha256_hash(test.clone()).unwrap();
+        let hash2 = get_sha256_hash(test).unwrap();
+        let hash3 = get_sha256_hash(test2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
 
     #[test]
     fn test_hash_sha512() {
-        let filename = PathBuf::from("cargo.toml");
-        let hash1 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
-        let hash2 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
-        let filename = PathBuf::from("cargo.lock");
-        let hash3 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
+        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+        let hash1 = get_sha512_hash(test.clone()).unwrap();
+        let hash2 = get_sha512_hash(test).unwrap();
+        let hash3 = get_sha512_hash(test2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
