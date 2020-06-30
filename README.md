@@ -1,4 +1,4 @@
-# Enc-File
+# Enc_File
 
 ![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)
 
