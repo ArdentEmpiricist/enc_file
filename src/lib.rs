@@ -327,12 +327,14 @@ pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
 /// use enc_file::{get_blake3_hash, read_file};
-/// let filename = PathBuf::from("cargo.toml");
-/// let hash1 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
-/// let hash2 = get_blake3_hash(read_file(&filename).unwrap()).unwrap();
-/// assert_eq!(hash1, hash2);
+/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///         let hash1 = get_blake3_hash(test.clone()).unwrap();
+///         let hash2 = get_blake3_hash(test).unwrap();
+///         let hash3 = get_blake3_hash(test2).unwrap();
+///         assert_eq!(hash1, hash2);
+///         assert_ne!(hash1, hash3);
 /// ```
 pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
     let hash = blake3::hash(&data);
@@ -343,12 +345,14 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
 /// use enc_file::{get_sha256_hash, read_file};
-/// let filename = PathBuf::from("cargo.toml");
-/// let hash1 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
-/// let hash2 = get_sha256_hash(read_file(&filename).unwrap()).unwrap();
-/// assert_eq!(hash1, hash2);
+/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///         let hash1 = get_sha256_hash(test.clone()).unwrap();
+///         let hash2 = get_sha256_hash(test).unwrap();
+///         let hash3 = get_sha256_hash(test2).unwrap();
+///         assert_eq!(hash1, hash2);
+///         assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
@@ -366,12 +370,14 @@ pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
 /// use enc_file::{get_sha512_hash, read_file};
-/// let filename = PathBuf::from("cargo.toml");
-/// let hash1 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
-/// let hash2 = get_sha512_hash(read_file(&filename).unwrap()).unwrap();
-/// assert_eq!(hash1, hash2);
+/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
+///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///         let hash1 = get_sha512_hash(test.clone()).unwrap();
+///         let hash2 = get_sha512_hash(test).unwrap();
+///         let hash3 = get_sha512_hash(test2).unwrap();
+///         assert_eq!(hash1, hash2);
+///         assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
