@@ -140,11 +140,15 @@ struct Cipher {
 ///
 /// ```
 /// use enc_file::{encrypt_chacha, decrypt_chacha};
+///
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
+/// // encrypt_chacha takes plaintext as Vec<u8>. Text needs to be transformed into vector
 /// let text_vec = text.to_vec();
+///
 /// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
 /// assert_ne!(&ciphertext, &text);
+///
 /// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
@@ -180,11 +184,15 @@ pub fn encrypt_chacha(
 ///
 /// ```
 /// use enc_file::{encrypt_chacha, decrypt_chacha};
+///
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
+/// // encrypt_chacha takes plaintext as Vec<u8>. Text needs to be transformed into vector
 /// let text_vec = text.to_vec();
+///
 /// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
 /// assert_ne!(&ciphertext, &text);
+///
 /// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
@@ -214,11 +222,15 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
 ///
 /// ```
 /// use enc_file::{encrypt_aes, decrypt_aes};
+///
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
+/// // encrypt_aes takes plaintext as Vec<u8>. Text needs to be transformed into vector
 /// let text_vec = text.to_vec();
+///
 /// let ciphertext = encrypt_aes(text_vec, key).unwrap();
 /// assert_ne!(&ciphertext, &text);
+///
 /// let plaintext = decrypt_aes(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
@@ -251,11 +263,15 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
 ///
 /// ```
 /// use enc_file::{encrypt_aes, decrypt_aes};
+///
 /// let text = b"This a test";
 /// let key: &str = "an example very very secret key.";
+/// // encrypt_aes takes plaintext as Vec<u8>. Text needs to be transformed into vector
 /// let text_vec = text.to_vec();
+///
 /// let ciphertext = encrypt_aes(text_vec, key).unwrap();
 /// assert_ne!(&ciphertext, &text);
+///
 /// let plaintext = decrypt_aes(ciphertext, key).unwrap();
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
@@ -293,9 +309,11 @@ pub fn get_input_string() -> Result<String, Box<dyn std::error::Error>> {
 /// use enc_file::{read_file, save_file};
 /// use std::path::PathBuf;
 /// use std::fs::remove_file;
+///
 /// let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 /// let path: PathBuf = PathBuf::from("test_abcdefg.file");
 /// save_file(content.clone(), &path).unwrap();
+///
 /// let content_read: Vec<u8> = read_file(&path).unwrap();
 /// remove_file(&path).unwrap(); //remove file created for this test
 /// assert_eq!(content, content_read);
@@ -317,6 +335,7 @@ pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> 
 /// use enc_file::save_file;
 /// use std::path::PathBuf;
 /// use std::fs::remove_file;
+///
 /// let path: PathBuf = PathBuf::from("test123.testxyz");
 /// let ciphertext: Vec<u8> = vec![1 as u8, 2 as u8];
 /// save_file(ciphertext, &path).unwrap();
@@ -333,13 +352,17 @@ pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
 ///
 /// ```
 /// use enc_file::{get_blake3_hash, read_file};
+///
+/// //creating to different Vec<u8> to hash and compare
 /// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-///         let hash1 = get_blake3_hash(test.clone()).unwrap();
-///         let hash2 = get_blake3_hash(test).unwrap();
-///         let hash3 = get_blake3_hash(test2).unwrap();
-///         assert_eq!(hash1, hash2);
-///         assert_ne!(hash1, hash3);
+/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///
+/// //hashing 2x test and 1x text2 to compare the hashes. hash1 == hash2 != hash3
+/// let hash1 = get_blake3_hash(test.clone()).unwrap();
+/// let hash2 = get_blake3_hash(test).unwrap();
+/// let hash3 = get_blake3_hash(test2).unwrap();
+/// assert_eq!(hash1, hash2);
+/// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
     let hash = blake3::hash(&data);
@@ -351,13 +374,17 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
 ///
 /// ```
 /// use enc_file::{get_sha256_hash, read_file};
+///
+/// //creating to different Vec<u8> to hash and compare
 /// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-///         let hash1 = get_sha256_hash(test.clone()).unwrap();
-///         let hash2 = get_sha256_hash(test).unwrap();
-///         let hash3 = get_sha256_hash(test2).unwrap();
-///         assert_eq!(hash1, hash2);
-///         assert_ne!(hash1, hash3);
+/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///
+/// //hashing 2x test and 1x text2 to compare the hashes. hash1 == hash2 != hash3
+/// let hash1 = get_sha256_hash(test.clone()).unwrap();
+/// let hash2 = get_sha256_hash(test).unwrap();
+/// let hash3 = get_sha256_hash(test2).unwrap();
+/// assert_eq!(hash1, hash2);
+/// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
@@ -376,13 +403,17 @@ pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
 ///
 /// ```
 /// use enc_file::{get_sha512_hash, read_file};
+///
+/// //creating to different Vec<u8> to hash and compare
 /// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-///         let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-///         let hash1 = get_sha512_hash(test.clone()).unwrap();
-///         let hash2 = get_sha512_hash(test).unwrap();
-///         let hash3 = get_sha512_hash(test2).unwrap();
-///         assert_eq!(hash1, hash2);
-///         assert_ne!(hash1, hash3);
+/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+///
+/// //hashing 2x test and 1x text2 to compare the hashes. hash1 == hash2 != hash3
+/// let hash1 = get_sha512_hash(test.clone()).unwrap();
+/// let hash2 = get_sha512_hash(test).unwrap();
+/// let hash3 = get_sha512_hash(test2).unwrap();
+/// assert_eq!(hash1, hash2);
+/// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     // create a Sha256 object
