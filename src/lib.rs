@@ -51,7 +51,7 @@
 //!let test2 = b"Calculating the BLAKE3 Hash of this text."; //"." added at the end
 //!let test2_vec = test2.to_vec();
 //!let hash3 = get_blake3_hash(test2_vec).unwrap();
-//!assert_ne!(hash1, hash3); //check that the added "." changes the hash
+//!assert_ne!(hash1, hash3); //check that the added "." changes the hash and hash1 != hash3
 //! ```
 //!
 //! See https://github.com/LazyEmpiricist/enc_file
@@ -699,10 +699,16 @@ pub fn read_keyfile() -> Result<(String, HashMap<String, String>, bool), Box<dyn
 /// use chacha20poly1305::XChaCha20Poly1305;
 /// use enc_file::{encrypt_hashmap};
 /// use serde::{Deserialize, Serialize};
+///
+/// //create example keymap. Keymap constits of key-name and actual-key. Attention: Valid keys for cryptography needs to be 32-chars utf8!
 /// let mut keymap_plaintext: HashMap<String, String> = HashMap::new();
 /// keymap_plaintext.insert("Hello".to_string(), "world".to_string());
+///
+/// //create (extremely insecure) password
 /// let password: String = "Password".to_string();
+/// //encrypt keymap with password
 /// let encrypted: Vec<u8> = encrypt_hashmap(keymap_plaintext.clone(), &password).unwrap();
+///
 /// //test that encrypting 2 times results in different Vec<u8>
 /// let encrypted2: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password).unwrap();
 /// assert_ne!(encrypted, encrypted2);
