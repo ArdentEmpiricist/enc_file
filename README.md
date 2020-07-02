@@ -4,7 +4,7 @@
 ![Crates.io](https://img.shields.io/crates/v/enc_file)
 ![Documentation](https://docs.rs/enc_file/badge.svg)
 ![Crates.io](https://img.shields.io/crates/l/enc_file)
-![Crates.io](https://img.shields.io/crates/d/enc_file)
+![Crates.io](https://img.shields.io/crates/v/text_analysis?color=darkblue)
 
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
 
