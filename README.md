@@ -1,10 +1,10 @@
 # Enc_File
 
-![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)
-![Crates.io](https://img.shields.io/crates/v/enc_file)
-![Documentation](https://docs.rs/enc_file/badge.svg)
-![Crates.io](https://img.shields.io/crates/l/enc_file)
-![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue)
+[![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file/actions)
+[![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
+[![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
+[![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue)](https://crates.io/crates/enc_file)
 
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
 
