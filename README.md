@@ -1,6 +1,6 @@
 # Enc_File
 
-[![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file/actions)
+[![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
 [![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
