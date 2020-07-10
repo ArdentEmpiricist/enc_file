@@ -38,6 +38,8 @@ Please enter the corresponding number to continue:
 
 *Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
+Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
+
 ## Breaking changes:
 *Breaking change in Version 0.3:* Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Change to keymap to conveniently work with several keys. You can import your old keys using "Add key" -> "manually".
 
@@ -80,7 +82,8 @@ assert_ne!(hash1, hash3); //check that the added "." changes the hash
 ## To do:
 - [x] Add encrypted map on harddrive to use several keys
 - [x] Add main menu to guide through the process
-- [ ] Enable command-line arguments
+- [x] Enable command-line arguments to calculate hash
 - [ ] Add option to securely delete files 
+- [ ] Perhaps: Enable command-line arguments for encrpytion/decryption
 
 **Issues and feedback are highly appreciated.** 

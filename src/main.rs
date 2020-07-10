@@ -111,65 +111,87 @@
 
 use enc_file::{
     add_key, choose_hashing_function, create_new_keyfile, decrypt_file, encrypt_file,
-    get_input_string, read_keyfile, remove_key,
+    get_input_string, read_keyfile, remove_key, get_blake3_hash, get_sha256_hash, get_sha512_hash, read_file
 };
 
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using XChaCha20Poly1305\n4 Decrypt file using XChaCha20Poly1305\n5 Encrypt file using AES-256-GCM-SIV\n6 Decrypt file using AES-256-GCM-SIV\n7 Calculate Hash");
-    //Getting user input
-    let answer = get_input_string()?;
-    // Creating a Vec with choices needing a password to compare to user input
-    let requiring_pw = vec![
-        "1".to_string(),
-        "2".to_string(),
-        "3".to_string(),
-        "4".to_string(),
-        "5".to_string(),
-        "6".to_string(),
-    ];
-    //check if the operation needs access to the keymap, requiring a password. Hashing can be done without a password.
-    if requiring_pw.contains(&answer) {
-        //All functions in this if-block require a password
-        //Check if there is a key.file in the directory
-        let (password, keymap_plaintext, new) = if Path::new("./key.file").exists() == false {
-            //No key.file found. Ask if a new one should be created.
-            create_new_keyfile()?
-        } else {
-            //key.file found. Reading and decrypting content
-            read_keyfile()?
-        };
-        if answer == "1" {
-            //if user just created a new key, no need to ask again for a second key
-            if new == false {
-                //Adding a new key to keymap
-                add_key(keymap_plaintext, password)?;
-            } else {
-            }
-        } else if answer == "2" {
-            //removing a key from keymap
-            remove_key(keymap_plaintext, password)?;
-        } else if answer == "3" {
-            //Encrypt file using ChaCha20Poly1305 with choosen key
-            encrypt_file(keymap_plaintext, "chacha")?;
-        } else if answer == "4" {
-            //Decrypt file ChaCha20Poly1305 with choosen key
-            decrypt_file(keymap_plaintext, "chacha")?;
-        } else if answer == "5" {
-            //Encrypt file using AES256-GCM-SIV with choosen key
-            encrypt_file(keymap_plaintext, "aes")?;
-        } else if answer == "6" {
-            //Decrypt file using AES256-GCM-SIV with choosen key
-            decrypt_file(keymap_plaintext, "aes")?;
+    let args: Vec<String> = env::args().collect();
+    //enable use of hashing functions via command line
+    if args.len() >= 2 {
+        if &args[1] == "hash" {
+            let path = PathBuf::from(&args[2]);
+            println!("Calculating Blake3 Hash for {:?}", &path);
+            let hash = get_blake3_hash(read_file(&path)?)?;
+            println!("Hash: {:?}", hash);
+        } else if &args[1] == "hash_sha256" {
+            let path = PathBuf::from(&args[2]);
+            println!("Calculating SHA256 Hash for {:?}", &path);
+            let hash = get_sha256_hash(read_file(&path)?)?;
+            println!("Hash: {:?}", hash);
+        } else if &args[1] == "hash_sha512" {
+            let path = PathBuf::from(&args[2]);
+            println!("Calculating SHA512 Hash for {:?}", &path);
+            let hash = get_sha512_hash(read_file(&path)?)?;
+            println!("Hash: {:?}", hash);
         }
-    //the following function don't need a password (as they don't access keymap)
-    } else if answer == "7" {
-        //Get Blake3, SHA256 or SHA512 HASH of file
-        choose_hashing_function()?;
     } else {
-        //User did not a valid number (between 1 and 7)
-        println!("Please enter a valid choice")
+        println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using XChaCha20Poly1305\n4 Decrypt file using XChaCha20Poly1305\n5 Encrypt file using AES-256-GCM-SIV\n6 Decrypt file using AES-256-GCM-SIV\n7 Calculate Hash");
+        //Getting user input
+        let answer = get_input_string()?;
+        // Creating a Vec with choices needing a password to compare to user input
+        let requiring_pw = vec![
+            "1".to_string(),
+            "2".to_string(),
+            "3".to_string(),
+            "4".to_string(),
+            "5".to_string(),
+            "6".to_string(),
+        ];
+        //check if the operation needs access to the keymap, requiring a password. Hashing can be done without a password.
+        if requiring_pw.contains(&answer) {
+            //All functions in this if-block require a password
+            //Check if there is a key.file in the directory
+            let (password, keymap_plaintext, new) = if Path::new("./key.file").exists() == false {
+                //No key.file found. Ask if a new one should be created.
+                create_new_keyfile()?
+            } else {
+                //key.file found. Reading and decrypting content
+                read_keyfile()?
+            };
+            if answer == "1" {
+                //if user just created a new key, no need to ask again for a second key
+                if new == false {
+                    //Adding a new key to keymap
+                    add_key(keymap_plaintext, password)?;
+                } else {
+                }
+            } else if answer == "2" {
+                //removing a key from keymap
+                remove_key(keymap_plaintext, password)?;
+            } else if answer == "3" {
+                //Encrypt file using ChaCha20Poly1305 with choosen key
+                encrypt_file(keymap_plaintext, "chacha")?;
+            } else if answer == "4" {
+                //Decrypt file ChaCha20Poly1305 with choosen key
+                decrypt_file(keymap_plaintext, "chacha")?;
+            } else if answer == "5" {
+                //Encrypt file using AES256-GCM-SIV with choosen key
+                encrypt_file(keymap_plaintext, "aes")?;
+            } else if answer == "6" {
+                //Decrypt file using AES256-GCM-SIV with choosen key
+                decrypt_file(keymap_plaintext, "aes")?;
+            }
+        //the following function don't need a password (as they don't access keymap)
+        } else if answer == "7" {
+            //Get Blake3, SHA256 or SHA512 HASH of file
+            choose_hashing_function()?;
+        } else {
+            //User did not a valid number (between 1 and 7)
+            println!("Please enter a valid choice")
+        }
     }
 
     Ok(())
