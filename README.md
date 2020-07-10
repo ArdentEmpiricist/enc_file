@@ -41,6 +41,7 @@ Please enter the corresponding number to continue:
 
 ### Directly calculate hash
 Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
+
 Example: ```enc_file hash ./cargo.toml``` -> ```Hash(65c3342975adeb00ec05dcfab6ccb6af877d3f996957742ec6365541546812e4)```
 
 ## Breaking changes:
