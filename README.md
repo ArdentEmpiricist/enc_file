@@ -24,7 +24,8 @@ Both encrypt and decrypt override existing files!
 
 This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
 
-## Main menu:
+## Usage:
+### Main menu (if started without any command line arguments)
 ```
 Please enter the corresponding number to continue:
 1 Add new key
@@ -38,7 +39,7 @@ Please enter the corresponding number to continue:
 
 *Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
-Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
+### Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
 
 ## Breaking changes:
 *Breaking change in Version 0.3:* Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Change to keymap to conveniently work with several keys. You can import your old keys using "Add key" -> "manually".
