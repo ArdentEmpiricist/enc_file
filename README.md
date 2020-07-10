@@ -39,7 +39,7 @@ Please enter the corresponding number to continue:
 
 *Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
-### directly calculate hash
+### Directly calculate hash
 Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
 
 ## Breaking changes:
