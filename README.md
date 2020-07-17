@@ -10,7 +10,7 @@ Encrypt / decrypt files or calculate the HASH from the command line. Written in 
 
 Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-256-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 
-XChaCha20Poly1305 and AES256-GCM-SIV offer higher protection against (accidental) nonce reuse as compared to ChaCha20Poly1305 oder AES-GCM.
+XChaCha20Poly1305 and AES256-GCM-SIV offer higher protection against (accidental) nonce reuse as compared to ChaCha20Poly1305 or AES-GCM.
 
 Encrypted files are (and have to be) stored as .crpt.
 
