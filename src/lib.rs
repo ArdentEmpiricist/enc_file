@@ -178,7 +178,7 @@ pub fn encrypt_chacha(
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Returns result (cleartext as Vec<u8>).
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Panics with wrong key. Returns result (cleartext as Vec<u8>).
 ///
 /// # Examples
 ///
@@ -257,7 +257,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
     Ok(encoded)
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result (cleartext as Vec<u8>).
+/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Panics with wrong key. Returns result (cleartext as Vec<u8>).
 ///
 /// # Examples
 ///
