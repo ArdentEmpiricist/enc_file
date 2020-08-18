@@ -929,6 +929,31 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_chacha_wrong_key_panic() {
+        let text = b"This a another test"; //Text to encrypt
+        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
+        let text_vec = text.to_vec(); //Convert text to Vec<u8>
+        let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
+                                                                
+        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
+        let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
+        let _plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_aes_wrong_key_panic() {
+        let text = b"This a another test"; //Text to encrypt
+        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
+        let text_vec = text.to_vec(); //Convert text to Vec<u8>
+        let ciphertext = encrypt_aes(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)                                              
+        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
+        let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
+        let _plaintext = decrypt_aes(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
+    }
+
+    #[test]
     fn test_example_hash() {
         let test = b"Calculating the BLAKE3 Hash of this text";
         let test_vec = test.to_vec(); //Convert text to Vec<u8>
