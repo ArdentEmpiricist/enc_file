@@ -13,7 +13,7 @@
 //!
 //! Can be used as library and a binary target. Install via cargo install enc_file
 //!
-//! Panics at errors making execution impossible.  
+//! Panics at errors making safe execution impossible.  
 //!
 //! # Examples
 //!
