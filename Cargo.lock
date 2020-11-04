@@ -200,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "enc_file"
-version = "0.3.10"
+version = "0.3.12"
 dependencies = [
  "aes-gcm-siv",
  "bincode",
