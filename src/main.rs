@@ -111,7 +111,8 @@
 
 use enc_file::{
     add_key, choose_hashing_function, create_new_keyfile, decrypt_file, encrypt_file,
-    get_input_string, read_keyfile, remove_key, get_blake3_hash, get_sha256_hash, get_sha512_hash, read_file
+    get_blake3_hash, get_input_string, get_sha256_hash, get_sha512_hash, read_file, read_keyfile,
+    remove_key,
 };
 
 use std::env;

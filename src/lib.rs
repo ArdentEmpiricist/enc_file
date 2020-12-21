@@ -112,11 +112,11 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
+use std::iter;
 use std::path::PathBuf;
 
 use rand::distributions::Alphanumeric;
-use rand::rngs::OsRng;
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
 use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
@@ -159,10 +159,12 @@ pub fn encrypt_chacha(
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
     //generate random nonce
-    let rand_string: String = OsRng
-        .sample_iter(&Alphanumeric)
+    let mut rng = thread_rng();
+    let rand_string: String = iter::repeat(())
+        .map(|()| rng.sample(Alphanumeric))
+        .map(char::from)
         .take(24)
-        .collect::<String>();
+        .collect();
     let nonce = GenericArray::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
@@ -238,10 +240,12 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
     let key = GenericArray::clone_from_slice(key.as_bytes());
     let aead = Aes256GcmSiv::new(&key);
     //generate random nonce
-    let rand_string: String = OsRng
-        .sample_iter(&Alphanumeric)
+    let mut rng = thread_rng();
+    let rand_string: String = iter::repeat(())
+        .map(|()| rng.sample(Alphanumeric))
+        .map(char::from)
         .take(12)
-        .collect::<String>();
+        .collect();
     let nonce = GenericArray::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
@@ -577,10 +581,12 @@ pub fn add_key(
     let answer = get_input_string()?;
     let mut key = String::new();
     if answer == "r" {
-        let key_rand: String = OsRng
-            .sample_iter(&Alphanumeric)
+        let mut rng = thread_rng();
+        let key_rand: String = iter::repeat(())
+            .map(|()| rng.sample(Alphanumeric))
+            .map(char::from)
             .take(32)
-            .collect::<String>();
+            .collect();
         key.push_str(&key_rand);
     } else if answer == "m" {
         println!("Please enter key. Must be valid 32-long char-utf8");
@@ -629,10 +635,12 @@ pub fn create_new_keyfile(
         let answer = get_input_string()?;
         let mut key = String::new();
         if answer == "r" {
-            let key_rand: String = OsRng
-                .sample_iter(&Alphanumeric)
+            let mut rng = thread_rng();
+            let key_rand: String = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
                 .take(32)
-                .collect::<String>();
+                .collect();
             key.push_str(&key_rand);
         } else if answer == "m" {
             println!("Please enter key. Must be valid 32-long char-utf8");
@@ -720,10 +728,12 @@ pub fn encrypt_hashmap(
     let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).expect("Unable to encode keymap!");
 
     //encrypt Hashmap with keys
-    let rand_string: String = OsRng
-        .sample_iter(&Alphanumeric)
+    let mut rng = thread_rng();
+    let rand_string: String = iter::repeat(())
+        .map(|()| rng.sample(Alphanumeric))
+        .map(char::from)
         .take(24)
-        .collect::<String>();
+        .collect();
     let nonce = GenericArray::from_slice(rand_string.as_bytes());
     let hashed_password = blake3::hash(&password.trim().as_bytes());
     let key = GenericArray::clone_from_slice(hashed_password.as_bytes());
@@ -780,15 +790,16 @@ mod tests {
     #[test]
     fn test_multiple_encrypt_unequal_chacha() {
         use rand::{distributions::Uniform, Rng};
-        let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 255);
 
         let mut i = 1;
         while i < 1000 {
-            let key: String = OsRng
-                .sample_iter(&Alphanumeric)
+            let mut rng = thread_rng();
+            let key: String = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
                 .take(32)
-                .collect::<String>();
+                .collect();
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
             let ciphertext1 = encrypt_chacha(content.clone(), &key).unwrap();
             let ciphertext2 = encrypt_chacha(content.clone(), &key).unwrap();
@@ -812,14 +823,15 @@ mod tests {
     #[test]
     fn test_multiple_encrypt_unequal_aes() {
         use rand::{distributions::Uniform, Rng};
-        let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 255);
         let mut i = 1;
         while i < 1000 {
-            let key: String = OsRng
-                .sample_iter(&Alphanumeric)
+            let mut rng = thread_rng();
+            let key: String = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
                 .take(32)
-                .collect::<String>();
+                .collect();
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
             let ciphertext1 = encrypt_aes(content.clone(), &key).unwrap();
             let ciphertext2 = encrypt_aes(content.clone(), &key).unwrap();
@@ -876,14 +888,15 @@ mod tests {
     #[test]
     fn test_multiple_random_chacha() {
         use rand::{distributions::Uniform, Rng};
-        let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 255);
         let mut i = 1;
         while i < 1000 {
-            let key: String = OsRng
-                .sample_iter(&Alphanumeric)
+            let mut rng = thread_rng();
+            let key: String = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
                 .take(32)
-                .collect::<String>();
+                .collect();
 
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
             let ciphertext = encrypt_chacha(content.clone(), &key).unwrap();
@@ -898,14 +911,15 @@ mod tests {
     #[test]
     fn test_multiple_random_aes() {
         use rand::{distributions::Uniform, Rng};
-        let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 255);
         let mut i = 1;
         while i < 1000 {
-            let key: String = OsRng
-                .sample_iter(&Alphanumeric)
+            let mut rng = thread_rng();
+            let key: String = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
                 .take(32)
-                .collect::<String>();
+                .collect();
 
             let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
             let ciphertext = encrypt_aes(content.clone(), &key).unwrap();
@@ -935,7 +949,7 @@ mod tests {
         let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
         let text_vec = text.to_vec(); //Convert text to Vec<u8>
         let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-                                                                
+
         assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
         let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
         let _plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
@@ -947,7 +961,7 @@ mod tests {
         let text = b"This a another test"; //Text to encrypt
         let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
         let text_vec = text.to_vec(); //Convert text to Vec<u8>
-        let ciphertext = encrypt_aes(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)                                              
+        let ciphertext = encrypt_aes(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
         assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
         let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
         let _plaintext = decrypt_aes(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
