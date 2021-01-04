@@ -476,7 +476,7 @@ pub fn decrypt_file(
     );
 
     println!("Existing keynames");
-    for (entry, _) in &keymap_plaintext {
+    for entry in keymap_plaintext.keys() {
         println!("{}", entry)
     }
     println!("Please provide keyname to decrypt: ");
@@ -516,7 +516,7 @@ pub fn encrypt_file(
     );
 
     println!("Existing keynames");
-    for (entry, _) in &keymap_plaintext {
+    for entry in keymap_plaintext.keys() {
         println!("{}", entry)
     }
     let cleartext = read_file(&path)?;
@@ -546,7 +546,7 @@ pub fn remove_key(
         panic!("No keys avaible. Please first add a key.")
     }
     println!("Existing keynames");
-    for (entry, _) in &keymap_plaintext {
+    for entry in keymap_plaintext.keys() {
         println!("{}", entry)
     }
     println!("Please provide keyname to delete: ");
@@ -723,7 +723,7 @@ pub fn read_keyfile() -> Result<(String, HashMap<String, String>, bool), Box<dyn
 /// ```
 pub fn encrypt_hashmap(
     keymap_plaintext: HashMap<String, String>,
-    password: &String,
+    password: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).expect("Unable to encode keymap!");
 

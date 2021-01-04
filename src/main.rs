@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if requiring_pw.contains(&answer) {
             //All functions in this if-block require a password
             //Check if there is a key.file in the directory
-            let (password, keymap_plaintext, new) = if Path::new("./key.file").exists() == false {
+            let (password, keymap_plaintext, new) = if !Path::new("./key.file").exists() {
                 //No key.file found. Ask if a new one should be created.
                 create_new_keyfile()?
             } else {
@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             if answer == "1" {
                 //if user just created a new key, no need to ask again for a second key
-                if new == false {
+                if !new {
                     //Adding a new key to keymap
                     add_key(keymap_plaintext, password)?;
                 } else {
