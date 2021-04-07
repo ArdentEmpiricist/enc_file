@@ -113,7 +113,7 @@ use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
 use std::iter;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -315,14 +315,14 @@ pub fn get_input_string() -> Result<String, Box<dyn std::error::Error>> {
 /// use std::fs::remove_file;
 ///
 /// let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-/// let path: PathBuf = PathBuf::from("test_abcdefg.file");
+/// let path: PathBuf = PathBuf::from("test_abcdefg.filexyz");
 /// save_file(content.clone(), &path).unwrap();
 ///
 /// let content_read: Vec<u8> = read_file(&path).unwrap();
 /// remove_file(&path).unwrap(); //remove file created for this test
 /// assert_eq!(content, content_read);
 /// ```
-pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn read_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut f = File::open(path)?;
     let mut buffer: Vec<u8> = Vec::new();
 
@@ -345,7 +345,7 @@ pub fn read_file(path: &PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> 
 /// save_file(ciphertext, &path).unwrap();
 /// remove_file(&path).unwrap(); //remove file created for this text
 /// ```
-pub fn save_file(data: Vec<u8>, path: &PathBuf) -> std::io::Result<()> {
+pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
     let mut file = File::create(path)?;
     file.write_all(&data)?;
     Ok(())
