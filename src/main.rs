@@ -122,22 +122,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     //enable use of hashing functions via command line
     if args.len() >= 2 {
-        if &args[1] == "hash" {
-            let path = PathBuf::from(&args[2]);
-            println!("Calculating Blake3 Hash for {:?}", &path);
-            let hash = get_blake3_hash(read_file(&path)?)?;
-            println!("Hash: {:?}", hash);
-        } else if &args[1] == "hash_sha256" {
-            let path = PathBuf::from(&args[2]);
-            println!("Calculating SHA256 Hash for {:?}", &path);
-            let hash = get_sha256_hash(read_file(&path)?)?;
-            println!("Hash: {:?}", hash);
-        } else if &args[1] == "hash_sha512" {
-            let path = PathBuf::from(&args[2]);
-            println!("Calculating SHA512 Hash for {:?}", &path);
-            let hash = get_sha512_hash(read_file(&path)?)?;
-            println!("Hash: {:?}", hash);
-        }
+        let path = PathBuf::from(&args[2]);
+        if path.is_file() {
+            if &args[1] == "hash" {
+                println!("Calculating Blake3 Hash for {:?}", &path);
+                let hash = get_blake3_hash(read_file(&path)?)?;
+                println!("Hash: {:?}", hash);
+            } else if &args[1] == "hash_sha256" {
+                println!("Calculating SHA256 Hash for {:?}", &path);
+                let hash = get_sha256_hash(read_file(&path)?)?;
+                println!("Hash: {:?}", hash);
+            } else if &args[1] == "hash_sha512" {
+                println!("Calculating SHA512 Hash for {:?}", &path);
+                let hash = get_sha512_hash(read_file(&path)?)?;
+                println!("Hash: {:?}", hash);
+            } else {
+                println!("Please enter valid hashing function (see docs)")
+            } 
+        } else {
+                println!("Please enter a valid filename")
+            }
+       
     } else {
         println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using XChaCha20Poly1305\n4 Decrypt file using XChaCha20Poly1305\n5 Encrypt file using AES-256-GCM-SIV\n6 Decrypt file using AES-256-GCM-SIV\n7 Calculate Hash");
         //Getting user input
