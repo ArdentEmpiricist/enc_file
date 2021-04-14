@@ -18,7 +18,7 @@ Both encrypt and decrypt override existing files!
 
 **Panics** at errors making safe execution impossible but functions mostly return results.  
 
-**To install:** clone the repository and build from source or use cargo install enc_file.
+**To install:** clone the repository and build from source, download windows-executable (see "releases") or use cargo install enc_file.
 
 **Warning: Don't use for anything important, use VeraCrypt or similar instead.**
 
