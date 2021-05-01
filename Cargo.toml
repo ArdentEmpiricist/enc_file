@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.3.20"
+version = "0.3.21"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
 edition = "2018"
 description = "Encrypt / decrypt files or calculate hash from the command line. Warning: Don't use for anything important, use VeraCrypt or similar instead."
@@ -23,8 +23,8 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-gcm-siv = "0.9.0"
-chacha20poly1305 = "0.7.1" 
+aes-gcm-siv = "0.10.0"
+chacha20poly1305 = "0.8.0" 
 rand = "0.8.3"
 serde = { version = "1.0.124", features = ["derive"] }
 bincode = "1.3.3"
