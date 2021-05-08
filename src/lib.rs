@@ -122,7 +122,7 @@ use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
 use chacha20poly1305::XChaCha20Poly1305;
 
-use sha2::{Digest, Sha256, Sha512};
+
 
 use serde::{Deserialize, Serialize};
 
@@ -133,6 +133,9 @@ struct Cipher {
     rand_string: String,
     ciphertext: Vec<u8>,
 }
+
+//type to simplify information from keyfile
+type Keyfile = (String, HashMap<String, String>, bool);
 
 /// Encrypts cleartext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Returns result (ciphertext as Vec<u8>).
 ///
@@ -369,7 +372,15 @@ pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
 /// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
-    let hash = blake3::hash(&data);
+    //check len() of ec with data
+    let hash: blake3::Hash = if data.len() < 128000 {
+        blake3::hash(&data)
+    } else {
+        let input: &[u8] = &data;
+        let mut hasher = blake3::Hasher::new();
+        hasher.update_with_join::<blake3::join::RayonJoin>(input);
+        hasher.finalize()
+    };
     Ok(hash)
 }
 
@@ -391,6 +402,8 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
 /// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    use sha2::{Digest, Sha256};
+
     // create a Sha256 object
     let mut hasher = Sha256::new();
 
@@ -420,6 +433,8 @@ pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
 /// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    use sha2::{Digest, Sha512};
+
     // create a Sha256 object
     let mut hasher = Sha512::new();
 
@@ -610,7 +625,7 @@ pub fn add_key(
 
 /// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Resturns result (password, keyfile and bool (true if new keyfile way created)).
 pub fn create_new_keyfile(
-) -> Result<(String, HashMap<String, String>, bool), Box<dyn std::error::Error>> {
+) -> Result<Keyfile, Box<dyn std::error::Error>> {
     println!("No keyfile found. Create a new one? Y/N");
     let answer = get_input_string()?;
     if answer == "y" {
@@ -670,7 +685,7 @@ pub fn create_new_keyfile(
 }
 
 /// Read keyfile to keymap. Asks for userpassword. Returns result (password, keymap and bool(false as no new keymap was created))
-pub fn read_keyfile() -> Result<(String, HashMap<String, String>, bool), Box<dyn std::error::Error>>
+pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>>
 {
     println!("Enter password: ");
     let password = get_input_string()?;
