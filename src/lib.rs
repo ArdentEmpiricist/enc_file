@@ -385,7 +385,7 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
     Ok(hash)
 }
 
-/// Get SHA256 Hash from data. File needs to be read as Vac<u8> (e.g. use enc_file::read_file()). Returns result.
+/// Get SHA256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
