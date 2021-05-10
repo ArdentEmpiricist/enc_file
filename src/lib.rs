@@ -365,7 +365,7 @@ pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
 /// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
 /// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
 ///
-/// //hashing 2x test and 1x text2 to compare the hashes. hash1 == hash2 != hash3
+/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
 /// let hash1 = get_blake3_hash(test.clone()).unwrap();
 /// let hash2 = get_blake3_hash(test).unwrap();
 /// let hash3 = get_blake3_hash(test2).unwrap();
@@ -395,7 +395,7 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
 /// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
 /// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
 ///
-/// //hashing 2x test and 1x text2 to compare the hashes. hash1 == hash2 != hash3
+/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
 /// let hash1 = get_sha256_hash(test.clone()).unwrap();
 /// let hash2 = get_sha256_hash(test).unwrap();
 /// let hash3 = get_sha256_hash(test2).unwrap();
