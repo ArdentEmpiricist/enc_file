@@ -354,7 +354,8 @@ pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Get BLAKE3 Hash from data. File needs to be read as Vac<u8> (e.g. use enc_file::read_file()). Returns result.
+/// Get BLAKE3 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
+/// Uses multithreading if len(Vec<u8>) > 128.000
 /// # Examples
 ///
 /// ```
