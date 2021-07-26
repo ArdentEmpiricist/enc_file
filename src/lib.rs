@@ -379,7 +379,7 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
     } else {
         let input: &[u8] = &data;
         let mut hasher = blake3::Hasher::new();
-        hasher.update_with_join::<blake3::join::RayonJoin>(input);
+        hasher.update_rayon(input);
         hasher.finalize()
     };
     Ok(hash)
@@ -875,6 +875,17 @@ mod tests {
         let hash1 = get_blake3_hash(test.clone()).unwrap();
         let hash2 = get_blake3_hash(test).unwrap();
         let hash3 = get_blake3_hash(test2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_hash_blake3_big() {
+        let random_bytes: Vec<u8> = (0..128000).map(|_| { rand::random::<u8>() }).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| { rand::random::<u8>() }).collect();
+        let hash1 = get_blake3_hash(random_bytes.clone()).unwrap();
+        let hash2 = get_blake3_hash(random_bytes).unwrap();
+        let hash3 = get_blake3_hash(random_bytes2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
