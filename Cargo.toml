@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.3.26"
+version = "0.3.27"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
 edition = "2018"
 description = "Encrypt / decrypt files or calculate hash from the command line. Warning: Don't use for anything important, use VeraCrypt or similar instead."
