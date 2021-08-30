@@ -29,4 +29,4 @@ rand = "0.8.4"
 serde = { version = "1.0.129", features = ["derive"] }
 bincode = "1.3.3"
 blake3 = { version = "1.0.0", features = ["rayon"] }
-sha2 = "0.9.5"
+sha2 = "0.9.6"
