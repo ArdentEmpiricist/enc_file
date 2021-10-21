@@ -1,8 +1,8 @@
 [package]
 name = "enc_file"
-version = "0.3.27"
+version = "0.3.28"
 authors = ["LazyEmpiricist <35100899+LazyEmpiricist@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Encrypt / decrypt files or calculate hash from the command line. Warning: Don't use for anything important, use VeraCrypt or similar instead."
 readme = "README.md"
 homepage = "https://docs.rs/enc_file/"
