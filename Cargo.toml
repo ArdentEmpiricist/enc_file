@@ -26,7 +26,7 @@ path = "src/main.rs"
 aes-gcm-siv = "0.10.3"
 chacha20poly1305 = "0.9.0" 
 rand = "0.8.4"
-serde = { version = "1.0.130", features = ["derive"] }
+serde = { version = "1.0.131", features = ["derive"] }
 bincode = "1.3.3"
 blake3 = { version = "1.2.0", features = ["rayon"] }
 sha2 = "0.10.0"
