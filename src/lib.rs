@@ -120,7 +120,7 @@ use rand::{thread_rng, Rng};
 
 use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm_siv::Aes256GcmSiv;
-use chacha20poly1305::XChaCha20Poly1305;
+use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
 
 
 
@@ -159,7 +159,7 @@ pub fn encrypt_chacha(
     cleartext: Vec<u8>,
     key: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let key = Key::from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
     //generate random nonce
     let mut rng = thread_rng();
@@ -168,7 +168,7 @@ pub fn encrypt_chacha(
         .map(char::from)
         .take(24)
         .collect();
-    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let nonce = XNonce::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
         .expect("encryption failure!");
@@ -202,7 +202,7 @@ pub fn encrypt_chacha(
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
+    let key = Key::from_slice(key.as_bytes());
     let aead = XChaCha20Poly1305::new(&key);
 
     //deserialize input read from file
@@ -213,7 +213,7 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
     if ciphertext2.len() != len_ciphertext {
         panic!("length of received ciphertext not ok")
     };
-    let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    let nonce = XNonce::from_slice(rand_string2.as_bytes());
     //decrypt to plaintext
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
