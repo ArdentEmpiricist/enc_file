@@ -118,11 +118,9 @@ use std::path::{Path, PathBuf};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
-use aes_gcm_siv::Aes256GcmSiv;
-use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
-
-
+use aes_gcm_siv::aead::{Aead, NewAead};
+use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce, Key as AES_Key}; 
+use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
 use serde::{Deserialize, Serialize};
 
@@ -160,7 +158,7 @@ pub fn encrypt_chacha(
     key: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = Key::from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(&key);
+    let aead = XChaCha20Poly1305::new(key);
     //generate random nonce
     let mut rng = thread_rng();
     let rand_string: String = iter::repeat(())
@@ -203,7 +201,7 @@ pub fn encrypt_chacha(
 /// ```
 pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let key = Key::from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(&key);
+    let aead = XChaCha20Poly1305::new(key);
 
     //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
@@ -240,8 +238,8 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(&key);
+    let key = AES_Key::from_slice(key.as_bytes());
+    let aead = Aes256GcmSiv::new(key);
     //generate random nonce
     let mut rng = thread_rng();
     let rand_string: String = iter::repeat(())
@@ -249,7 +247,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
         .map(char::from)
         .take(12)
         .collect();
-    let nonce = GenericArray::from_slice(rand_string.as_bytes());
+    let nonce = AES_Nonce::from_slice(rand_string.as_bytes());
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, cleartext.as_ref())
         .expect("encryption failure!");
@@ -283,8 +281,8 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = GenericArray::clone_from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(&key);
+    let key = AES_Key::from_slice(key.as_bytes());
+    let aead = Aes256GcmSiv::new(key);
     //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
@@ -293,7 +291,7 @@ pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::erro
     if ciphertext2.len() != len_ciphertext {
         panic!("length of received ciphertext not ok")
     };
-    let nonce = GenericArray::from_slice(rand_string2.as_bytes());
+    let nonce = AES_Nonce::from_slice(rand_string2.as_bytes());
     //decrypt to plaintext
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext2.as_ref())
@@ -625,8 +623,7 @@ pub fn add_key(
 }
 
 /// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Resturns result (password, keyfile and bool (true if new keyfile way created)).
-pub fn create_new_keyfile(
-) -> Result<Keyfile, Box<dyn std::error::Error>> {
+pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
     println!("No keyfile found. Create a new one? Y/N");
     let answer = get_input_string()?;
     if answer == "y" {
@@ -686,16 +683,15 @@ pub fn create_new_keyfile(
 }
 
 /// Read keyfile to keymap. Asks for userpassword. Returns result (password, keymap and bool(false as no new keymap was created))
-pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>>
-{
+pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
     println!("Enter password: ");
     let password = get_input_string()?;
-    let hashed_password = blake3::hash(&password.trim().as_bytes());
+    let hashed_password = blake3::hash(password.trim().as_bytes());
     //println!("{:?}", hashed_password);
     let mut f = File::open("key.file").expect("Could not open key.file");
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer)?;
-    let key = GenericArray::clone_from_slice(hashed_password.as_bytes());
+    let key = Key::from_slice(hashed_password.as_bytes());
 
     let decoded: Cipher = bincode::deserialize(&buffer[..])?;
     let (ciphertext, len_ciphertext, rand_string) =
@@ -703,8 +699,8 @@ pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>>
     if ciphertext.len() != len_ciphertext {
         panic!("length of received ciphertext not ok")
     };
-    let nonce = GenericArray::from_slice(rand_string.as_bytes());
-    let aead = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::from_slice(rand_string.as_bytes());
+    let aead = XChaCha20Poly1305::new(key);
 
     let plaintext: Vec<u8> = aead
         .decrypt(nonce, ciphertext.as_ref())
@@ -750,10 +746,10 @@ pub fn encrypt_hashmap(
         .map(char::from)
         .take(24)
         .collect();
-    let nonce = GenericArray::from_slice(rand_string.as_bytes());
-    let hashed_password = blake3::hash(&password.trim().as_bytes());
-    let key = GenericArray::clone_from_slice(hashed_password.as_bytes());
-    let aead = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::from_slice(rand_string.as_bytes());
+    let hashed_password = blake3::hash(password.trim().as_bytes());
+    let key = Key::from_slice(hashed_password.as_bytes());
+    let aead = XChaCha20Poly1305::new(key);
     let ciphertext: Vec<u8> = aead
         .encrypt(nonce, encoded.as_ref())
         .expect("encryption failure!");
@@ -881,8 +877,8 @@ mod tests {
 
     #[test]
     fn test_hash_blake3_big() {
-        let random_bytes: Vec<u8> = (0..128000).map(|_| { rand::random::<u8>() }).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| { rand::random::<u8>() }).collect();
+        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
         let hash1 = get_blake3_hash(random_bytes.clone()).unwrap();
         let hash2 = get_blake3_hash(random_bytes).unwrap();
         let hash3 = get_blake3_hash(random_bytes2).unwrap();

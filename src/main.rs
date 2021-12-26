@@ -138,11 +138,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Hash: {:?}", hash);
             } else {
                 println!("Please enter valid hashing function (see docs)")
-            } 
-        } else {
-                println!("Please enter a valid filename")
             }
-       
+        } else {
+            println!("Please enter a valid filename")
+        }
     } else {
         println!("Please enter the corresponding number to continue:\n1 Add new key\n2 Remove key\n3 Encrypt file using XChaCha20Poly1305\n4 Decrypt file using XChaCha20Poly1305\n5 Encrypt file using AES-256-GCM-SIV\n6 Decrypt file using AES-256-GCM-SIV\n7 Calculate Hash");
         //Getting user input
