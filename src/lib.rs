@@ -715,8 +715,8 @@ pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
 ///
 /// ```
 /// use std::collections::HashMap;
-/// use aes_gcm_siv::aead::{generic_array::GenericArray, Aead, NewAead};
-/// use chacha20poly1305::XChaCha20Poly1305;
+/// use aes_gcm_siv::aead::{Aead, NewAead};
+/// use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 /// use enc_file::{encrypt_hashmap};
 /// use serde::{Deserialize, Serialize};
 ///
