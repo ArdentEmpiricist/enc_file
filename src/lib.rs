@@ -119,7 +119,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
 use aes_gcm_siv::aead::{Aead, NewAead};
-use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce, Key as AES_Key}; 
+use aes_gcm_siv::{Aes256GcmSiv, Key as AES_Key, Nonce as AES_Nonce};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
 use serde::{Deserialize, Serialize};
