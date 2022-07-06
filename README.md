@@ -8,7 +8,7 @@
 
 Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
 
-Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-256-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
+Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-256-GCM-SIV (https://docs.rs/aes-gcm-siv) for cryptography, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3), SHA2-256 / SHA2-512 (https://docs.rs/sha2) oder SHA3-256 / SHA3-512 (https://docs.rs/sha3) for hashing.
 
 XChaCha20Poly1305 and AES256-GCM-SIV offer higher protection against (accidental) nonce reuse as compared to ChaCha20Poly1305 or AES-GCM.
 
@@ -40,7 +40,7 @@ Please enter the corresponding number to continue:
 *Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
 ### Directly calculate hash
-Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha256 file_name``` to calculate SHA256-Hash, ```enc_file hash_sha512 file_name``` to calculate SHA512-Hash.
+Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha2_256 file_name``` to calculate SHA2-256-Hash, ```enc_file hash_sha2_512 file_name``` to calculate SHA2-512-Hash, ```enc_file hash_sha3_256 file_name``` to calculate SHA3-256-Hash, ```enc_file hash_sha3_512 file_name``` to calculate SHA3-512-Hash.
 
 Example: ```enc_file hash ./cargo.toml``` -> ```Hash(65c3342975adeb00ec05dcfab6ccb6af877d3f996957742ec6365541546812e4)```
 
