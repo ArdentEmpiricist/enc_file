@@ -383,24 +383,24 @@ pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error
     Ok(hash)
 }
 
-/// Get SHA256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
+/// Get SHA2-256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
-/// use enc_file::{get_sha256_hash, read_file};
+/// use enc_file::{get_sha2_256_hash, read_file};
 ///
 /// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+/// let test = b"Calculating the SHA2-256 Hash of this text".to_vec();
+/// let test2 = b"Calculating the the SHA2-256 Hash of this different text".to_vec();
 ///
 /// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha256_hash(test.clone()).unwrap();
-/// let hash2 = get_sha256_hash(test).unwrap();
-/// let hash3 = get_sha256_hash(test2).unwrap();
+/// let hash1 = get_sha2_256_hash(test.clone()).unwrap();
+/// let hash2 = get_sha2_256_hash(test).unwrap();
+/// let hash3 = get_sha2_256_hash(test2).unwrap();
 /// assert_eq!(hash1, hash2);
 /// assert_ne!(hash1, hash3);
 /// ```
-pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_sha2_256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     use sha2::{Digest, Sha256};
 
     // create a Sha256 object
@@ -414,24 +414,24 @@ pub fn get_sha256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
     Ok(format!("{:?}", hash))
 }
 
-/// Get SHA512 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
+/// Get SHA2-512 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
 /// # Examples
 ///
 /// ```
-/// use enc_file::{get_sha512_hash, read_file};
+/// use enc_file::{get_sha2_512_hash, read_file};
 ///
 /// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
+/// let test = b"Calculating the the SHA2-512 Hash of this text".to_vec();
+/// let test2 = b"Calculating the SHA2-512 Hash of this different text".to_vec();
 ///
 /// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha512_hash(test.clone()).unwrap();
-/// let hash2 = get_sha512_hash(test).unwrap();
-/// let hash3 = get_sha512_hash(test2).unwrap();
+/// let hash1 = get_sha2_512_hash(test.clone()).unwrap();
+/// let hash2 = get_sha2_512_hash(test).unwrap();
+/// let hash3 = get_sha2_512_hash(test2).unwrap();
 /// assert_eq!(hash1, hash2);
 /// assert_ne!(hash1, hash3);
 /// ```
-pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_sha2_512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     use sha2::{Digest, Sha512};
 
     // create a Sha256 object
@@ -445,9 +445,73 @@ pub fn get_sha512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Erro
     Ok(format!("{:?}", hash))
 }
 
+/// Get SHA3-256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
+/// # Examples
+///
+/// ```
+/// use enc_file::{get_sha3_256_hash, read_file};
+///
+/// //creating to different Vec<u8> to hash and compare
+/// let test = b"Calculating the the SHA3-256 Hash of this text".to_vec();
+/// let test2 = b"Calculating the SHA3-256 Hash of this different text".to_vec();
+///
+/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
+/// let hash1 = get_sha3_256_hash(test.clone()).unwrap();
+/// let hash2 = get_sha3_256_hash(test).unwrap();
+/// let hash3 = get_sha3_256_hash(test2).unwrap();
+/// assert_eq!(hash1, hash2);
+/// assert_ne!(hash1, hash3);
+/// ```
+pub fn get_sha3_256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    use sha3::{Digest, Sha3_256};
+
+    // create a Sha256 object
+    let mut hasher = Sha3_256::new();
+
+    // write input message
+    hasher.update(data);
+
+    // read hash digest and consume hasher
+    let hash = hasher.finalize();
+    Ok(format!("{:?}", hash))
+}
+
+/// Get SHA3-512 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
+/// # Examples
+///
+/// ```
+/// use enc_file::{get_sha3_512_hash, read_file};
+///
+/// //creating to different Vec<u8> to hash and compare
+/// let test = b"Calculating the the SHA3-512 Hash of this text".to_vec();
+/// let test2 = b"Calculating the SHA3-512 Hash of this different text".to_vec();
+///
+/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
+/// let hash1 = get_sha3_512_hash(test.clone()).unwrap();
+/// let hash2 = get_sha3_512_hash(test).unwrap();
+/// let hash3 = get_sha3_512_hash(test2).unwrap();
+/// assert_eq!(hash1, hash2);
+/// assert_ne!(hash1, hash3);
+/// ```
+pub fn get_sha3_512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    use sha3::{Digest, Sha3_512};
+
+    // create a Sha256 object
+    let mut hasher = Sha3_512::new();
+
+    // write input message
+    hasher.update(data);
+
+    // read hash digest and consume hasher
+    let hash = hasher.finalize();
+    Ok(format!("{:?}", hash))
+}
+
 /// Allows user to choose desired hashing function. Returns result.
 pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Please choose type of Hash:\n1 Blake3\n2 SHA256\n3 SHA5212");
+    println!(
+        "Please choose type of Hash:\n1 Blake3\n2 SHA2-256\n3 SHA2-5512\n4 SHA3-256\n5 SHA3-512"
+    );
     //Get user input
     let answer = get_input_string()?;
     if answer == "1" {
@@ -456,15 +520,25 @@ pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
         let hash = get_blake3_hash(read_file(&path)?)?;
         println!("Hash Blake3: {:?}", hash);
     } else if answer == "2" {
-        println!("Calculating SHA256 Hash: please enter file path  ");
+        println!("Calculating SHA2-256 Hash: please enter file path  ");
         let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha256_hash(read_file(&path)?)?;
-        println!("Hash SHA256: {:?}", hash);
+        let hash = get_sha2_256_hash(read_file(&path)?)?;
+        println!("Hash SHA2-256: {:?}", hash);
     } else if answer == "3" {
-        println!("Calculating SHA512 Hash: please enter file path  ");
+        println!("Calculating SHA2-512 Hash: please enter file path  ");
         let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha512_hash(read_file(&path)?)?;
-        println!("Hash SHA512: {:?}", hash);
+        let hash = get_sha2_512_hash(read_file(&path)?)?;
+        println!("Hash SHA2-512: {:?}", hash);
+    } else if answer == "4" {
+        println!("Calculating SHA3-256 Hash: please enter file path  ");
+        let path = PathBuf::from(get_input_string()?);
+        let hash = get_sha3_512_hash(read_file(&path)?)?;
+        println!("Hash SHA3-256: {:?}", hash);
+    } else if answer == "5" {
+        println!("Calculating SHA3-512 Hash: please enter file path  ");
+        let path = PathBuf::from(get_input_string()?);
+        let hash = get_sha3_512_hash(read_file(&path)?)?;
+        println!("Hash SHA3-512: {:?}", hash);
     } else {
         println!("Please choose a corresponding number betwenn 1 and 3")
     }
@@ -877,6 +951,7 @@ mod tests {
 
     #[test]
     fn test_hash_blake3_big() {
+        //testing large data input with Blake3 hashing function using rayon implementation
         let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
         let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
         let hash1 = get_blake3_hash(random_bytes.clone()).unwrap();
@@ -887,23 +962,82 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_sha256() {
-        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-        let hash1 = get_sha256_hash(test.clone()).unwrap();
-        let hash2 = get_sha256_hash(test).unwrap();
-        let hash3 = get_sha256_hash(test2).unwrap();
+    fn test_hash_sha2_256() {
+        let test = b"Calculating the Hash of this text".to_vec();
+        let test2 = b"Calculating the Hash of this different text".to_vec();
+        let hash1 = get_sha2_256_hash(test.clone()).unwrap();
+        let hash2 = get_sha2_256_hash(test).unwrap();
+        let hash3 = get_sha2_256_hash(test2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
 
     #[test]
-    fn test_hash_sha512() {
-        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-        let hash1 = get_sha512_hash(test.clone()).unwrap();
-        let hash2 = get_sha512_hash(test).unwrap();
-        let hash3 = get_sha512_hash(test2).unwrap();
+    fn test_hash_sha2_512() {
+        let test = b"Calculating the Hash of this text".to_vec();
+        let test2 = b"Calculating the Hash of this different text".to_vec();
+        let hash1 = get_sha2_512_hash(test.clone()).unwrap();
+        let hash2 = get_sha2_512_hash(test).unwrap();
+        let hash3 = get_sha2_512_hash(test2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_hash_sha3_256() {
+        let test = b"Calculating the Hash of this text".to_vec();
+        let test2 = b"Calculating the Hash of this different text".to_vec();
+        let hash1 = get_sha3_256_hash(test.clone()).unwrap();
+        let hash2 = get_sha3_256_hash(test).unwrap();
+        let hash3 = get_sha3_256_hash(test2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_hash_sha3_512() {
+        let test = b"Calculating the Hash of this text".to_vec();
+        let test2 = b"Calculating the Hash of this different text".to_vec();
+        let hash1 = get_sha3_512_hash(test.clone()).unwrap();
+        let hash2 = get_sha3_512_hash(test).unwrap();
+        let hash3 = get_sha3_512_hash(test2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_hash_sha_big() {
+        //testing large data input with SHA2 and SHA3 hashing functions
+        //testing SHA2-256
+        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let hash1 = get_sha2_256_hash(random_bytes.clone()).unwrap();
+        let hash2 = get_sha2_256_hash(random_bytes).unwrap();
+        let hash3 = get_sha2_256_hash(random_bytes2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+        //testing SHA2-512
+        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let hash1 = get_sha2_512_hash(random_bytes.clone()).unwrap();
+        let hash2 = get_sha2_512_hash(random_bytes).unwrap();
+        let hash3 = get_sha2_512_hash(random_bytes2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+        //testing SHA3-256
+        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let hash1 = get_sha3_256_hash(random_bytes.clone()).unwrap();
+        let hash2 = get_sha3_256_hash(random_bytes).unwrap();
+        let hash3 = get_sha3_256_hash(random_bytes2).unwrap();
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+        //testing SHA3-512
+        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
+        let hash1 = get_sha3_512_hash(random_bytes.clone()).unwrap();
+        let hash2 = get_sha3_512_hash(random_bytes).unwrap();
+        let hash3 = get_sha3_512_hash(random_bytes2).unwrap();
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }

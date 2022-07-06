@@ -111,8 +111,8 @@
 
 use enc_file::{
     add_key, choose_hashing_function, create_new_keyfile, decrypt_file, encrypt_file,
-    get_blake3_hash, get_input_string, get_sha256_hash, get_sha512_hash, read_file, read_keyfile,
-    remove_key,
+    get_blake3_hash, get_input_string, get_sha2_256_hash, get_sha2_512_hash, get_sha3_256_hash,
+    get_sha3_512_hash, read_file, read_keyfile, remove_key,
 };
 
 use std::env;
@@ -128,13 +128,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Calculating Blake3 Hash for {:?}", &path);
                 let hash = get_blake3_hash(read_file(&path)?)?;
                 println!("Hash: {:?}", hash);
-            } else if &args[1] == "hash_sha256" {
-                println!("Calculating SHA256 Hash for {:?}", &path);
-                let hash = get_sha256_hash(read_file(&path)?)?;
+            } else if &args[1] == "hash_sha2_256" {
+                println!("Calculating SHA2-256 Hash for {:?}", &path);
+                let hash = get_sha2_256_hash(read_file(&path)?)?;
                 println!("Hash: {:?}", hash);
-            } else if &args[1] == "hash_sha512" {
-                println!("Calculating SHA512 Hash for {:?}", &path);
-                let hash = get_sha512_hash(read_file(&path)?)?;
+            } else if &args[1] == "hash_sha2_512" {
+                println!("Calculating SHA2-512 Hash for {:?}", &path);
+                let hash = get_sha2_512_hash(read_file(&path)?)?;
+                println!("Hash: {:?}", hash);
+            } else if &args[1] == "hash_sha3_256" {
+                println!("Calculating SHA3-256 Hash for {:?}", &path);
+                let hash = get_sha3_256_hash(read_file(&path)?)?;
+                println!("Hash: {:?}", hash);
+            } else if &args[1] == "hash_sha3_512" {
+                println!("Calculating SHA3-512 Hash for {:?}", &path);
+                let hash = get_sha3_512_hash(read_file(&path)?)?;
                 println!("Hash: {:?}", hash);
             } else {
                 println!("Please enter valid hashing function (see docs)")
