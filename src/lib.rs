@@ -510,7 +510,7 @@ pub fn get_sha3_512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Er
 /// Allows user to choose desired hashing function. Returns result.
 pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "Please choose type of Hash:\n1 Blake3\n2 SHA2-256\n3 SHA2-5512\n4 SHA3-256\n5 SHA3-512"
+        "Please choose type of Hash:\n1 Blake3\n2 SHA2-256\n3 SHA2-512\n4 SHA3-256\n5 SHA3-512"
     );
     //Get user input
     let answer = get_input_string()?;
