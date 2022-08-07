@@ -118,8 +118,8 @@ use std::path::{Path, PathBuf};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-use aes_gcm_siv::aead::{Aead, NewAead};
-use aes_gcm_siv::{Aes256GcmSiv, Key as AES_Key, Nonce as AES_Nonce};
+use aes_gcm_siv::aead::{Aead, KeyInit};
+use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
 use serde::{Deserialize, Serialize};
@@ -157,8 +157,7 @@ pub fn encrypt_chacha(
     cleartext: Vec<u8>,
     key: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = Key::from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
+    let aead = XChaCha20Poly1305::new_from_slice(&mut key.as_bytes())?;
     //generate random nonce
     let mut rng = thread_rng();
     let rand_string: String = iter::repeat(())
@@ -200,8 +199,7 @@ pub fn encrypt_chacha(
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = Key::from_slice(key.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
+    let aead = XChaCha20Poly1305::new_from_slice(&mut key.as_bytes())?;
 
     //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
@@ -238,8 +236,7 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = AES_Key::from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(key);
+    let aead = Aes256GcmSiv::new_from_slice(&mut key.as_bytes())?;
     //generate random nonce
     let mut rng = thread_rng();
     let rand_string: String = iter::repeat(())
@@ -281,8 +278,7 @@ pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std
 /// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
 /// ```
 pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let key = AES_Key::from_slice(key.as_bytes());
-    let aead = Aes256GcmSiv::new(key);
+    let aead = Aes256GcmSiv::new_from_slice(&mut key.as_bytes())?;
     //deserialize input read from file
     let decoded: Cipher = bincode::deserialize(&enc[..])?;
     let (ciphertext2, len_ciphertext, rand_string2) =
@@ -789,7 +785,7 @@ pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
 ///
 /// ```
 /// use std::collections::HashMap;
-/// use aes_gcm_siv::aead::{Aead, NewAead};
+/// use aes_gcm_siv::aead::{Aead};
 /// use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 /// use enc_file::{encrypt_hashmap};
 /// use serde::{Deserialize, Serialize};
