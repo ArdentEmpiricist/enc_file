@@ -118,7 +118,7 @@ use std::path::{Path, PathBuf};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-use aes_gcm_siv::aead::{Aead, KeyInit};
+use aes_gcm_siv::aead::{Aead, KeyInit, AeadCore};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
