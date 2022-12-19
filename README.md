@@ -18,7 +18,7 @@ Both encrypt and decrypt override existing files!
 
 **Panics** at errors making safe execution impossible but functions mostly return results.  
 
-**To install:** clone the repository and build from source, download windows-executable (see "releases") or use cargo install enc_file.
+**Installation:** Use cargo install enc_file, download windows-executable (https://github.com/LazyEmpiricist/enc_file/releases or clone the repository and build from source.
 
 **Warning: Don't use for anything important, use VeraCrypt or similar instead.**
 
