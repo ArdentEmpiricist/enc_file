@@ -40,7 +40,12 @@ Please enter the corresponding number to continue:
 *Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
 
 ### Directly calculate hash
-Use ```enc_file hash file_name``` to calculate BLAKE3-Hash, ```enc_file hash_sha2_256 file_name``` to calculate SHA2-256-Hash, ```enc_file hash_sha2_512 file_name``` to calculate SHA2-512-Hash, ```enc_file hash_sha3_256 file_name``` to calculate SHA3-256-Hash, ```enc_file hash_sha3_512 file_name``` to calculate SHA3-512-Hash.
+Use 
+```enc_file hash file_name``` to calculate BLAKE3-Hash,
+```enc_file hash_sha2_256 file_name``` to calculate SHA2-256-Hash,
+```enc_file hash_sha2_512 file_name``` to calculate SHA2-512-Hash,
+```enc_file hash_sha3_256 file_name``` to calculate SHA3-256-Hash,
+```enc_file hash_sha3_512 file_name``` to calculate SHA3-512-Hash.
 
 Example: ```enc_file hash ./cargo.toml``` -> ```Hash(65c3342975adeb00ec05dcfab6ccb6af877d3f996957742ec6365541546812e4)```
 
