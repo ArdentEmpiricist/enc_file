@@ -367,7 +367,7 @@ pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
 /// assert_ne!(hash1, hash3);
 /// ```
 pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
-    //check len() of ec with data
+    //check len() of Vec<u8> and for big files use rayon to improve compute time utilizing threads
     let hash: blake3::Hash = if data.len() < 128000 {
         blake3::hash(&data)
     } else {
