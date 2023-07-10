@@ -92,7 +92,6 @@ assert_ne!(hash1, hash3); //check that the added "." changes the hash
 - [x] Add encrypted map on harddrive to use several keys
 - [x] Add main menu to guide through the process
 - [x] Enable command-line arguments to calculate hash
-- [ ] Add option to securely delete files 
 - [ ] Perhaps: Enable command-line arguments for encrpytion/decryption
 
 **Issues and feedback are highly appreciated.** 
