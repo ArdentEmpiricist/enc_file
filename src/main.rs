@@ -180,6 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     //Adding a new key to keymap
                     add_key(keymap_plaintext, password)?;
                 } else {
+                    ();
                 }
             } else if answer == "2" {
                 //removing a key from keymap

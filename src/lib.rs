@@ -696,7 +696,7 @@ pub fn add_key(
 pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
     println!("No keyfile found. Create a new one? Y/N");
     let answer = get_input_string()?;
-    if answer == "y" {
+    if answer == "Y" {
         //Enter a password to encrypt key.file
         println!("Please enter a password (lenth > 8) to encrypt the keyfile: ");
 
