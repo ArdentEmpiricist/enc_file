@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         //Getting user input
         let answer = get_input_string()?;
         // Creating a Vec with choices needing a password to compare to user input
-        let requiring_pw = vec![
+        let requiring_pw = [
             "1".to_string(),
             "2".to_string(),
             "3".to_string(),
@@ -179,8 +179,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if !new {
                     //Adding a new key to keymap
                     add_key(keymap_plaintext, password)?;
-                } else {
-                    ();
                 }
             } else if answer == "2" {
                 //removing a key from keymap
