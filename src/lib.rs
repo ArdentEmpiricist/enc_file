@@ -882,7 +882,7 @@ mod tests {
                 .map(char::from)
                 .take(32)
                 .collect();
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
             let ciphertext1 = encrypt_chacha(content.clone(), &key).unwrap();
             let ciphertext2 = encrypt_chacha(content.clone(), &key).unwrap();
             let ciphertext3 = encrypt_chacha(content.clone(), &key).unwrap();
@@ -914,7 +914,7 @@ mod tests {
                 .map(char::from)
                 .take(32)
                 .collect();
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
             let ciphertext1 = encrypt_aes(content.clone(), &key).unwrap();
             let ciphertext2 = encrypt_aes(content.clone(), &key).unwrap();
             let ciphertext3 = encrypt_aes(content.clone(), &key).unwrap();
@@ -1051,7 +1051,7 @@ mod tests {
                 .take(32)
                 .collect();
 
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
             let ciphertext = encrypt_chacha(content.clone(), &key).unwrap();
             assert_ne!(&ciphertext, &content);
             let plaintext = decrypt_chacha(ciphertext, &key).unwrap();
@@ -1074,7 +1074,7 @@ mod tests {
                 .take(32)
                 .collect();
 
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(&range)).collect();
+            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
             let ciphertext = encrypt_aes(content.clone(), &key).unwrap();
             assert_ne!(&ciphertext, &content);
             let plaintext = decrypt_aes(ciphertext, &key).unwrap();
