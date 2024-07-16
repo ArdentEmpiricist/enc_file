@@ -20,8 +20,10 @@ Both encrypt and decrypt override existing files!
 **Panics** at errors making safe execution impossible but functions mostly return results.  
 
 **Installation:** 
-- Use cargo install enc_file or clone the repository and build from source.
+You have different options of how to install Enc_File
+- Use ```cargo install enc_file``` which installs the enc_file binary globally.
 - Visit https://github.com/ArdentEmpiricist/enc_file/releases and download the executable binary for your operating system
+- Clone the GitHub repository and build from source.
 
 **Warning: Don't use for anything important, use VeraCrypt or similar instead.**
 
