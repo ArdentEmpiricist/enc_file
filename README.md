@@ -1,7 +1,7 @@
 # Enc_File
 
 [![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
-[![Clippy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml)
+[![rust-clippy analyze](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml)
 [![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
