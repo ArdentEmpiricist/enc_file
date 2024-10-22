@@ -1,3 +1,4 @@
 /target
 *.crpt
 key.file
+.DS_Store
