@@ -115,8 +115,8 @@ use std::io::prelude::*;
 use std::iter;
 use std::path::{Path, PathBuf};
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 
 use aes_gcm_siv::aead::{Aead, KeyInit};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce};
@@ -159,7 +159,7 @@ pub fn encrypt_chacha(
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let aead = XChaCha20Poly1305::new_from_slice(key.as_bytes())?;
     //generate random nonce
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let rand_string: String = iter::repeat(())
         .map(|()| rng.sample(Alphanumeric))
         .map(char::from)
@@ -238,7 +238,7 @@ pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::e
 pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let aead = Aes256GcmSiv::new_from_slice(key.as_bytes())?;
     //generate random nonce
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let rand_string: String = iter::repeat(())
         .map(|()| rng.sample(Alphanumeric))
         .map(char::from)
@@ -665,7 +665,7 @@ pub fn add_key(
     let answer = get_input_string()?;
     let mut key = String::new();
     if answer == "r" {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let key_rand: String = iter::repeat(())
             .map(|()| rng.sample(Alphanumeric))
             .map(char::from)
@@ -718,7 +718,7 @@ pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
         let answer = get_input_string()?;
         let mut key = String::new();
         if answer == "r" {
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let key_rand: String = iter::repeat(())
                 .map(|()| rng.sample(Alphanumeric))
                 .map(char::from)
@@ -810,7 +810,7 @@ pub fn encrypt_hashmap(
     let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).expect("Unable to encode keymap!");
 
     //encrypt Hashmap with keys
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let rand_string: String = iter::repeat(())
         .map(|()| rng.sample(Alphanumeric))
         .map(char::from)
@@ -871,12 +871,12 @@ mod tests {
 
     #[test]
     fn test_multiple_encrypt_unequal_chacha() {
-        use rand::{distributions::Uniform, Rng};
-        let range = Uniform::new(0, 255);
+        use rand::distr::Uniform;
+        let range = Uniform::new(0, 255).unwrap();
 
         let mut i = 1;
         while i < 1000 {
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let key: String = iter::repeat(())
                 .map(|()| rng.sample(Alphanumeric))
                 .map(char::from)
@@ -904,11 +904,11 @@ mod tests {
 
     #[test]
     fn test_multiple_encrypt_unequal_aes() {
-        use rand::{distributions::Uniform, Rng};
-        let range = Uniform::new(0, 255);
+        use rand::distr::Uniform;
+        let range = Uniform::new(0, 255).unwrap();
         let mut i = 1;
         while i < 1000 {
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let key: String = iter::repeat(())
                 .map(|()| rng.sample(Alphanumeric))
                 .map(char::from)
@@ -1040,11 +1040,11 @@ mod tests {
 
     #[test]
     fn test_multiple_random_chacha() {
-        use rand::{distributions::Uniform, Rng};
-        let range = Uniform::new(0, 255);
+        use rand::distr::Uniform;
+        let range = Uniform::new(0, 255).unwrap();
         let mut i = 1;
         while i < 1000 {
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let key: String = iter::repeat(())
                 .map(|()| rng.sample(Alphanumeric))
                 .map(char::from)
@@ -1063,11 +1063,11 @@ mod tests {
 
     #[test]
     fn test_multiple_random_aes() {
-        use rand::{distributions::Uniform, Rng};
-        let range = Uniform::new(0, 255);
+        use rand::distr::Uniform;
+        let range = Uniform::new(0, 255).unwrap();
         let mut i = 1;
         while i < 1000 {
-            let mut rng = thread_rng();
+            let mut rng = rng();
             let key: String = iter::repeat(())
                 .map(|()| rng.sample(Alphanumeric))
                 .map(char::from)
