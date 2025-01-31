@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.4.17"
+version = "0.4.18"
 authors = [
     "ArdentEmpiricist <35100899+ArdentEmpiricist@users.noreply.github.com>",
 ]
