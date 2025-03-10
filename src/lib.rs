@@ -5,7 +5,7 @@
 //!
 //! Breaking change in Version 0.3: Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" -> "manually".
 //!
-//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
+//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compatibility.
 //!
 //! Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
 //!
@@ -116,7 +116,7 @@ use std::iter;
 use std::path::{Path, PathBuf};
 
 use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 
 use aes_gcm_siv::aead::{Aead, KeyInit};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce};
@@ -536,18 +536,18 @@ pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
         let hash = get_sha3_512_hash(read_file(&path)?)?;
         println!("Hash SHA3-512: {:?}", hash);
     } else {
-        println!("Please choose a corresponding number betwenn 1 and 3")
+        println!("Please choose a corresponding number between 1 and 3")
     }
     Ok(())
 }
 
-/// Decrypts file. Taking a keymap "keymap_plaintext" and the choosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
+/// Decrypts file. Taking a keymap "keymap_plaintext" and the chosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
 pub fn decrypt_file(
     keymap_plaintext: HashMap<String, String>,
     enc: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if keymap_plaintext.is_empty() {
-        panic!("No keys avaible. Please first add a key.")
+        panic!("No keys available. Please first add a key.")
     }
     println!("Decrypting file: please enter file path  ");
     let path = PathBuf::from(get_input_string()?);
@@ -586,7 +586,7 @@ pub fn encrypt_file(
     enc: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if keymap_plaintext.is_empty() {
-        panic!("No keys avaible. Please first add a key.")
+        panic!("No keys available. Please first add a key.")
     }
     println!("Encrypting file: please enter file path  ");
     let path = PathBuf::from(get_input_string()?);
@@ -627,7 +627,7 @@ pub fn remove_key(
     password: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if keymap_plaintext.is_empty() {
-        panic!("No keys avaible. Please first add a key.")
+        panic!("No keys available. Please first add a key.")
     }
     println!("Existing keynames");
     for entry in keymap_plaintext.keys() {
@@ -661,7 +661,9 @@ pub fn add_key(
     let key_name = get_input_string()?;
 
     //Ask if random key should be generate or key will be provided by user
-    println!("Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8");
+    println!(
+        "Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8"
+    );
     let answer = get_input_string()?;
     let mut key = String::new();
     if answer == "r" {
@@ -692,13 +694,13 @@ pub fn add_key(
     Ok(())
 }
 
-/// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Resturns result (password, keyfile and bool (true if new keyfile way created)).
+/// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Returns result (password, keyfile and bool (true if new keyfile way created)).
 pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
     println!("No keyfile found. Create a new one? Y/N");
     let answer = get_input_string()?;
     if answer == "Y" {
         //Enter a password to encrypt key.file
-        println!("Please enter a password (lenth > 8) to encrypt the keyfile: ");
+        println!("Please enter a password (length > 8) to encrypt the keyfile: ");
 
         let mut password = String::new();
         io::stdin()
@@ -714,7 +716,9 @@ pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
         let key_name = get_input_string()?;
 
         //Ask if random key should be generate or key will be provided by user
-        println!("Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8");
+        println!(
+            "Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8"
+        );
         let answer = get_input_string()?;
         let mut key = String::new();
         if answer == "r" {
@@ -790,7 +794,7 @@ pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
 /// use enc_file::{encrypt_hashmap};
 /// use serde::{Deserialize, Serialize};
 ///
-/// //create example keymap. Keymap constits of key-name and actual-key. Attention: Valid keys for cryptography needs to be 32-chars utf8!
+/// //create example keymap. Keymap consists of key-name and actual-key. Attention: Valid keys for cryptography needs to be 32-chars utf8!
 /// let mut keymap_plaintext: HashMap<String, String> = HashMap::new();
 /// keymap_plaintext.insert("Hello".to_string(), "world".to_string());
 ///
@@ -848,7 +852,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encryt_decrypt_aes() {
+    fn test_encrypt_decrypt_aes() {
         let text = b"This a test";
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
@@ -859,7 +863,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encryt_decrypt_chacha() {
+    fn test_encrypt_decrypt_chacha() {
         let text = b"This a test";
         let key: &str = "an example very very secret key.";
         let text_vec = text.to_vec();
@@ -1089,7 +1093,7 @@ mod tests {
         let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
         let text_vec = text.to_vec(); //Convert text to Vec<u8>
         let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-                                                                 //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
+        //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
         assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
         let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
         assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
