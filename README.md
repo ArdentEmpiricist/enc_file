@@ -1,5 +1,9 @@
 # enc_file
 
+<p align="center">
+  <img src="assets/logo.png" alt="enc_file Logo" width="200"/>
+</p>
+
 [![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
 [![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
