@@ -1,15 +1,15 @@
-# enc_file
-
-<p align="center">
-  <img src="assets/logo.png" alt="enc_file Logo" width="200"/>
-</p>
-
 [![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
 [![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue)](https://crates.io/crates/enc_file)
 [![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
+
+# enc_file
+
+<p align="center">
+  <img src="assets/logo.png" alt="enc_file Logo" width="200"/>
+</p>
 
 Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.
 
