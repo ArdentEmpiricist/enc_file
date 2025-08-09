@@ -1,5 +1,12 @@
 # enc_file
 
+[![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
+[![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
+[![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
+[![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue)](https://crates.io/crates/enc_file)
+[![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
+
 Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.
 
 > **Security note**: This project is **neither** audited **nor** reviewed. It protects data at rest but cannot defend a compromised host or advanced side channels. Use at your own risk. For important or sensitive information, use Veracrypt (or similar) instead.

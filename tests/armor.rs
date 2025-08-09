@@ -29,7 +29,7 @@ fn armor_roundtrip_and_detection_both_algs() {
         let ct = encrypt_bytes(&msg, pw.clone(), &opts).unwrap();
 
         let pt = decrypt_bytes(&ct, pw).unwrap();
-        assert_eq!(pt, msg, "alg={:?}", alg);
+        assert_eq!(pt, msg, "alg={alg:?}");
     }
 }
 
@@ -67,8 +67,7 @@ fn file_roundtrip_with_armor_both_algs() {
         assert_eq!(
             fs::read(&in_path).unwrap(),
             fs::read(&out_path).unwrap(),
-            "alg={:?}",
-            alg
+            "alg={alg:?}"
         );
     }
 }

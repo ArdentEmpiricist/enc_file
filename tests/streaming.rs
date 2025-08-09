@@ -67,7 +67,7 @@ fn streaming_empty_file_both_algs() {
         encrypt_file(&infile, Some(&enc), pw.clone(), streaming_opts(alg)).unwrap();
         decrypt_file(&enc, Some(&back), pw).unwrap();
 
-        assert_eq!(slurp(&infile), slurp(&back), "alg={:?}", alg);
+        assert_eq!(slurp(&infile), slurp(&back), "alg={alg:?}");
     }
 }
 
@@ -90,7 +90,7 @@ fn streaming_boundary_sized_both_algs() {
         encrypt_file(&infile, Some(&enc), pw.clone(), streaming_opts(alg)).unwrap();
         decrypt_file(&enc, Some(&back), pw).unwrap();
 
-        assert_eq!(slurp(&infile), slurp(&back), "alg={:?}", alg);
+        assert_eq!(slurp(&infile), slurp(&back), "alg={alg:?}");
     }
 }
 
@@ -110,7 +110,7 @@ fn streaming_roundtrip_large_both_algs() {
         encrypt_file(&infile, Some(&enc), pw.clone(), streaming_opts(alg)).unwrap();
         decrypt_file(&enc, Some(&back), pw).unwrap();
 
-        assert_eq!(slurp(&infile), slurp(&back), "alg={:?}", alg);
+        assert_eq!(slurp(&infile), slurp(&back), "alg={alg:?}");
     }
 }
 
@@ -143,8 +143,7 @@ fn streaming_mid_body_tamper_fails_both_algs() {
         let err = decrypt_file(&enc, Some(&back), pw).unwrap_err();
         assert!(
             matches!(err, enc_file::EncFileError::Crypto),
-            "alg={:?}",
-            alg
+            "alg={alg:?}"
         );
     }
 }

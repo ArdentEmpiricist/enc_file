@@ -29,7 +29,7 @@ fn empty_plaintext_roundtrip_both_algs() {
 
         let ct = encrypt_bytes(msg, pw.clone(), &opts).unwrap();
         let pt = decrypt_bytes(&ct, pw).unwrap();
-        assert_eq!(pt, msg, "alg={:?}", alg);
+        assert_eq!(pt, msg, "alg={alg:?}");
     }
 }
 
@@ -47,7 +47,7 @@ fn tiny_plaintext_both_algs() {
 
         let ct = encrypt_bytes(msg, pw.clone(), &opts).unwrap();
         let pt = decrypt_bytes(&ct, pw).unwrap();
-        assert_eq!(pt, msg, "alg={:?}", alg);
+        assert_eq!(pt, msg, "alg={alg:?}");
     }
 }
 
@@ -65,7 +65,7 @@ fn boundary_sized_plaintext_both_algs() {
 
         let ct = encrypt_bytes(&msg, pw.clone(), &opts).unwrap();
         let pt = decrypt_bytes(&ct, pw).unwrap();
-        assert_eq!(pt, msg, "alg={:?}", alg);
+        assert_eq!(pt, msg, "alg={alg:?}");
     }
 }
 
@@ -93,7 +93,7 @@ fn armor_on_off_consistency_both_algs() {
         let pt_bin = decrypt_bytes(&ct_bin, pw.clone()).unwrap();
         let pt_arm = decrypt_bytes(&ct_arm, pw).unwrap();
 
-        assert_eq!(pt_bin, msg, "alg={:?}", alg);
-        assert_eq!(pt_arm, msg, "alg={:?}", alg);
+        assert_eq!(pt_bin, msg, "alg={alg:?}");
+        assert_eq!(pt_arm, msg, "alg={alg:?}");
     }
 }

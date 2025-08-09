@@ -53,7 +53,7 @@ fn encrypt_decrypt_files_roundtrip_both_algs() {
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();
         decrypt_file(&enc_path, Some(&back_path), pw).unwrap();
 
-        assert_eq!(slurp(&in_path), slurp(&back_path), "alg={:?}", alg);
+        assert_eq!(slurp(&in_path), slurp(&back_path), "alg={alg:?}");
     }
 }
 
@@ -76,7 +76,7 @@ fn big_file_roundtrip_both_algs() {
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();
         decrypt_file(&enc_path, Some(&back_path), pw).unwrap();
 
-        assert_eq!(slurp(&in_path), slurp(&back_path), "alg={:?}", alg);
+        assert_eq!(slurp(&in_path), slurp(&back_path), "alg={alg:?}");
     }
 }
 

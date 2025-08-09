@@ -36,30 +36,24 @@ pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
 
 /// Supported AEAD algorithms.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum AeadAlg {
     /// XChaCha20-Poly1305 (24-byte nonces). Supports built-in streaming helpers.
+    #[default]
     XChaCha20Poly1305 = 1,
     /// AES-256-GCM-SIV (12-byte nonces). We implement simple counter-based streaming.
     Aes256GcmSiv = 2,
 }
 
-impl Default for AeadAlg {
-    fn default() -> Self {
-        AeadAlg::XChaCha20Poly1305
-    }
-}
 
 /// Supported password KDFs.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum KdfAlg {
+    #[default]
     Argon2id = 1,
 }
 
-impl Default for KdfAlg {
-    fn default() -> Self {
-        KdfAlg::Argon2id
-    }
-}
 
 impl EncryptOptions {
     /// Enable/disable ASCII armor in a Clippy-friendly way.
@@ -805,7 +799,7 @@ fn decrypt_stream_into_vec(
 
 // ---------- Hashing API ----------
 
-use std::io::{self, BufReader};
+use std::io::BufReader;
 
 /// Common hashing algorithms your library supports.
 ///
@@ -1024,7 +1018,7 @@ pub fn hash_file_keyed_blake3(path: &Path, key32: &[u8; 32]) -> Result<[u8; 32],
         }
         hasher.update(&buf[..n]);
     }
-    Ok((*hasher.finalize().as_bytes()).into())
+    Ok(*hasher.finalize().as_bytes())
 }
 
 /// Helper to hex-encode (lower-case) for display or logs.

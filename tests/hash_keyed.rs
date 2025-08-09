@@ -78,16 +78,14 @@ fn keyed_hash_roundtrip_bytes_both_algs() {
         let got_keyed = blake3_32_keyed(&key, &round);
         assert_eq!(
             got_keyed, expected_keyed,
-            "keyed blake3 mismatch: alg={:?}",
-            alg
+            "keyed blake3 mismatch: alg={alg:?}"
         );
 
         // (Optional) also compare unkeyed as a sanity check
         assert_eq!(
             blake3_32(&round),
             blake3_32(&msg),
-            "unkeyed blake3 mismatch: alg={:?}",
-            alg
+            "unkeyed blake3 mismatch: alg={alg:?}"
         );
     }
 }
@@ -133,16 +131,14 @@ fn keyed_hash_roundtrip_files_both_algs() {
         let got_keyed = blake3_32_keyed(&key, &round);
         assert_eq!(
             got_keyed, expected_keyed,
-            "keyed blake3 mismatch: alg={:?}",
-            alg
+            "keyed blake3 mismatch: alg={alg:?}"
         );
 
         // (Optional) also compare unkeyed as a sanity check
         assert_eq!(
             blake3_32(&round),
             blake3_32(&data),
-            "unkeyed blake3 mismatch: alg={:?}",
-            alg
+            "unkeyed blake3 mismatch: alg={alg:?}"
         );
     }
 }

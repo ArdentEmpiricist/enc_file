@@ -15,7 +15,6 @@ use enc_file::{
 use getrandom::fill as getrandom;
 use hex::decode as hex_decode;
 use secrecy::SecretString;
-use xxhash_rust::xxh3::{xxh3_64, xxh3_128};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -313,7 +312,7 @@ fn to_hex(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {
         use std::fmt::Write as _;
-        let _ = write!(&mut s, "{:02x}", b);
+        let _ = write!(&mut s, "{b:02x}");
     }
     s
 }

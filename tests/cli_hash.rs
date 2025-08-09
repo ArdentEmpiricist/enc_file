@@ -17,9 +17,9 @@ fn write_tmp_file(bytes: &[u8]) -> std::path::PathBuf {
 fn cli_hash_hex(path: &std::path::Path, alg_cli: &str) -> String {
     let mut cmd = Command::cargo_bin("enc-file").unwrap();
     let assert = cmd
-        .args(&["hash"])
+        .args(["hash"])
         .arg(path)
-        .args(&["--alg", alg_cli])
+        .args(["--alg", alg_cli])
         .assert()
         .success();
     let out = String::from_utf8_lossy(&assert.get_output().stdout).to_string();
@@ -29,9 +29,9 @@ fn cli_hash_hex(path: &std::path::Path, alg_cli: &str) -> String {
 fn cli_hash_raw(path: &std::path::Path, alg_cli: &str) -> Vec<u8> {
     let mut cmd = Command::cargo_bin("enc-file").unwrap();
     let assert = cmd
-        .args(&["hash"])
+        .args(["hash"])
         .arg(path)
-        .args(&["--alg", alg_cli, "--raw"])
+        .args(["--alg", alg_cli, "--raw"])
         .assert()
         .success();
     assert.get_output().stdout.clone()

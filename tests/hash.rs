@@ -54,7 +54,7 @@ fn hashing_roundtrip_bytes_both_algs() {
         let round = decrypt_bytes(&ct, pw).unwrap();
 
         let got = blake3_32(&round);
-        assert_eq!(got, expected, "alg={:?}", alg);
+        assert_eq!(got, expected, "alg={alg:?}");
     }
 }
 
@@ -94,6 +94,6 @@ fn hashing_roundtrip_files_both_algs() {
             .unwrap();
 
         let got = blake3_32(&round);
-        assert_eq!(got, expected, "alg={:?}", alg);
+        assert_eq!(got, expected, "alg={alg:?}");
     }
 }

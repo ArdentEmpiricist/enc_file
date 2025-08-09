@@ -3,7 +3,7 @@
 use std::fs;
 use std::io::Read;
 
-use enc_file::{decrypt_file, encrypt_file, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_file, encrypt_file};
 use secrecy::SecretString;
 use tempfile::tempdir;
 
