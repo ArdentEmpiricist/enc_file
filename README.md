@@ -8,7 +8,7 @@
 # enc_file
 
 <p align="center">
-  <img src="https://github.com/ArdentEmpiricist/enc_file/blob/main/assets/logo.png" alt="enc_file Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/main/assets/logo.png" alt="enc_file Logo" width="200"/>
 </p>
 
 Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.

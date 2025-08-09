@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Password-based file encryption tool with a versioned header, AEAD, Argon2id KDF, and streaming mode. Library + CLI."
