@@ -258,7 +258,15 @@ All fallible APIs return `Result<_, EncFileError>`. Common cases:
 
 ## License
 
-MIT OR Apache-2.0
+Licensed under either of
+
+- [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
+- [MIT license](LICENSE)
+
+at your option.
+
+Any contribution intentionally submitted for inclusion in the work shall be
+dual licensed as above, without any additional terms or conditions.
 
 ---
 
