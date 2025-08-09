@@ -1,12 +1,44 @@
 #![forbid(unsafe_code)]
-//! enc_file — password-based authenticated encryption for files.
+//! # enc_file — password-based authenticated encryption for files.
 //!
-//! Highlights
-//! - Passwords are never stored; keys are derived with **Argon2id** (salt + stored params).
-//! - Authenticated encryption via **XChaCha20-Poly1305** (default) or **AES-256-GCM-SIV**.
-//! - Versioned **binary header** + CBOR payload. Optional ASCII armor for transport.
-//! - **Streaming mode** for very large files (constant memory; configurable chunk size).
-//! - Library API is pure (no prompts/logging). CLI sits on top.
+//! `enc_file` is a Rust library for encrypting, decrypting, and hashing files or byte arrays.
+//! It supports modern AEAD ciphers (XChaCha20-Poly1305, AES-256-GCM-SIV) with Argon2id key derivation.
+//!
+//! ## Features
+//! - **File and byte array encryption/decryption**
+//! - **Streaming encryption** for large files (constant memory usage)
+//! - **Multiple AEAD algorithms**: XChaCha20-Poly1305, AES-256-GCM-SIV
+//! - **Password-based key derivation** using Argon2id
+//! - **Key map management** for named symmetric keys
+//! - **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32
+//! - **ASCII armor** for encrypted data (Base64 encoding)
+//!
+//! ## Example: Encrypt and decrypt a byte array
+//! ```no_run
+//! use enc_file::{encrypt_bytes, decrypt_bytes, EncryptOptions, AeadAlg};
+//! use secrecy::SecretString;
+//!
+//! let password = SecretString::new("mypassword".into());
+//! let opts = EncryptOptions {
+//!     alg: AeadAlg::XChaCha20Poly1305,
+//!     ..Default::default()
+//! };
+//!
+//! let ciphertext = encrypt_bytes(b"Hello, world!", password.clone(), &opts).unwrap();
+//! let plaintext = decrypt_bytes(&ciphertext, password).unwrap();
+//! assert_eq!(plaintext, b"Hello, world!");
+//! ```
+//!
+//! ## Example: Hash a file
+//! ```no_run
+//! use enc_file::{hash_file, HashAlg};
+//! use std::path::Path;
+//!
+//! let digest = hash_file(Path::new("myfile.txt"), HashAlg::Blake3).unwrap();
+//! println!("Hash: {}", enc_file::to_hex_lower(&digest));
+//! ```
+//!
+//! See function-level documentation for more details.
 //!
 //! Safety notes
 //! - The crate is not audited or reviewed! Protects data at rest. Does not defend against compromised hosts/side channels.
@@ -19,8 +51,8 @@ use std::path::{Path, PathBuf};
 use aead::{Aead, KeyInit};
 use aes_gcm_siv::Aes256GcmSiv;
 use argon2::{Algorithm, Argon2, Params, Version};
-use base64::{engine::general_purpose, Engine};
-use chacha20poly1305::aead::generic_array::{typenum::U19, GenericArray};
+use base64::{Engine, engine::general_purpose};
+use chacha20poly1305::aead::generic_array::{GenericArray, typenum::U19};
 use chacha20poly1305::aead::stream::{DecryptorBE32, EncryptorBE32};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 use getrandom::fill as getrandom;
@@ -35,8 +67,7 @@ pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
 // ---------- Public types ----------
 
 /// Supported AEAD algorithms.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum AeadAlg {
     /// XChaCha20-Poly1305 (24-byte nonces). Supports built-in streaming helpers.
     #[default]
@@ -45,15 +76,12 @@ pub enum AeadAlg {
     Aes256GcmSiv = 2,
 }
 
-
 /// Supported password KDFs.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum KdfAlg {
     #[default]
     Argon2id = 1,
 }
-
 
 impl EncryptOptions {
     /// Enable/disable ASCII armor in a Clippy-friendly way.
@@ -865,7 +893,7 @@ pub fn hash_bytes(data: &[u8], alg: HashAlg) -> Vec<u8> {
             xxh3_128(data).to_be_bytes().to_vec() // 16
         }
         HashAlg::Crc32 => {
-            use crc::{Crc, CRC_32_ISO_HDLC};
+            use crc::{CRC_32_ISO_HDLC, Crc};
             let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
             let mut d = crc.digest();
             d.update(data);
@@ -981,7 +1009,7 @@ pub fn hash_file(path: &Path, alg: HashAlg) -> Result<Vec<u8>, EncFileError> {
             Ok(h.digest128().to_be_bytes().to_vec())
         }
         HashAlg::Crc32 => {
-            use crc::{Crc, CRC_32_ISO_HDLC};
+            use crc::{CRC_32_ISO_HDLC, Crc};
             let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
             let mut d = crc.digest();
             loop {

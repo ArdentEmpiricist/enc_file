@@ -1,4 +1,7 @@
 #![forbid(unsafe_code)]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/main/assets/logo.png"
+)]
 //! Command-line interface for `enc_file`.
 //! Focuses on UX: subcommands, secure password input, streaming flags.
 

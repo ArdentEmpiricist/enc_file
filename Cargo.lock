@@ -435,7 +435,7 @@ checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
 name = "enc_file"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "aead",
  "aes-gcm-siv",
