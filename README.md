@@ -1,103 +1,280 @@
-# Enc_File
+# enc_file
 
-[![Rust](https://github.com/LazyEmpiricist/enc_file/workflows/Rust/badge.svg?branch=main)](https://github.com/LazyEmpiricist/enc_file)
-[![rust-clippy analyze](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/rust-clippy.yml)
-[![Crates.io](https://img.shields.io/crates/v/enc_file)](https://crates.io/crates/enc_file)
-[![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
-[![Crates.io](https://img.shields.io/crates/l/enc_file)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
-[![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue)](https://crates.io/crates/enc_file)
-[![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
+Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.
 
-Encrypt / decrypt files or calculate the HASH from the command line. Written in Rust without use of unsafe code. 
+> **Security note**: This project is **not** audited or reviewed. It protects data at rest but cannot defend a compromised host or advanced side channels. Use at your own risk. For important or sensitive information, use Veracrypt (or similar) instead.
 
-Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-256-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption/decryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3), SHA2-256 / SHA2-512 (https://docs.rs/sha2) oder SHA3-256 / SHA3-512 (https://docs.rs/sha3) for hashing.
+## Features
 
-XChaCha20Poly1305 and AES256-GCM-SIV offer higher protection against (accidental) nonce reuse as compared to ChaCha20Poly1305 or AES-GCM.
+- **Argon2id** password KDF (per-file salt + stored parameters).
+- AEAD: **XChaCha20-Poly1305** (default) or **AES-256-GCM-SIV**.
+- Compact **binary header** (magic, version, alg, KDF kind/params, salt, nonce, length).
+- Optional **ASCII armor** for transport.
+- **Streaming mode** for large files (constant memory; configurable `chunk_size`).
+- Zeroize-sensitive buffers and use `secrecy` wrappers.
+- Compute a file hash and print it as hex.
+- Usable as **library** and **CLI**.
 
-Encrypted files are (and have to be) stored as .crpt.
+---
 
-Both encrypt and decrypt override existing files!
+## Install
 
-**Panics** at errors making safe execution impossible but functions mostly return results.  
+You can install **enc-file** in several ways:
 
-**Installation:** 
-You have different options of how to install Enc_File
-- Use ```cargo install enc_file``` which installs the enc_file binary globally.
-- Visit https://github.com/ArdentEmpiricist/enc_file/releases and download the executable binary for your operating system
-- Clone the GitHub repository and build from source.
-
-**Warning: Don't use for anything important, use VeraCrypt or similar instead.**
-
-This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
-
-## Usage:
-### Main menu (if started without any command line arguments)
-```
-Please enter the corresponding number to continue:
-1 Add new key
-2 Remove key
-3 Encrypt file using XChaCha20Poly1305
-4 Decrypt file using XChaCha20Poly1305
-5 Encrypt file using AES-256-GCM-SIV
-6 Decrypt file using AES-256-GCM-SIV
-7 Calculate Hash
+### From crates.io (requires Rust toolchain)
+```bash
+cargo install enc-file
 ```
 
-*Option to generate a new key.file provided at first run or if no keyfile is detected. Keyfile needs to reside in program directory.*
+### From GitHub Releases (prebuilt binaries)
+1. Visit the [Releases page](https://github.com/ArdentEmpiricist/enc_file/releases).
+2. Download the binary for your platform.
+3. Place it in a directory in your `PATH`.
 
-### Directly calculate hash
-Use 
-```enc_file hash file_name``` to calculate BLAKE3-Hash,
-```enc_file hash_sha2_256 file_name``` to calculate SHA2-256-Hash,
-```enc_file hash_sha2_512 file_name``` to calculate SHA2-512-Hash,
-```enc_file hash_sha3_256 file_name``` to calculate SHA3-256-Hash,
-```enc_file hash_sha3_512 file_name``` to calculate SHA3-512-Hash.
+### From source
+```bash
+# from source
+cargo build --release
+# binary
+target/release/enc-file --help
+```
 
-Example: ```enc_file hash ./cargo.toml``` -> ```Hash(65c3342975adeb00ec05dcfab6ccb6af877d3f996957742ec6365541546812e4)```
+Add to a project as a library:
 
-## Breaking changes:
-*Breaking change in Version 0.3:* Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Change to keymap to conveniently work with several keys. You can import your old keys using "Add key" -> "manually".
+```toml
+# Cargo.toml
+[dependencies]
+enc_file = "0.5.0"
+```
 
-*Breaking change in Version 0.2:* Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability.
+Available optional features (check Cargo.toml): `aes` for AES-256-GCM-SIV.
 
-## Examples
-Encrypt/decrypt using XChaCha20Poly1305 and random nonce
+---
+
+## CLI Usage
+
+```
+enc-file <SUBCOMMAND>
+
+Subcommands:
+  enc     Encrypt a file (use --stream for large files)
+  dec     Decrypt a file
+  key     Manage an encrypted key map
+  hash    Compute a file hash and print it as hex
+```
+
+### Encrypt
+
+```bash
+# Simple: prompts for password (if your CLI is set up that way) or read from file if supported
+enc-file enc --in secret.pdf --out secret.enc --alg xchacha
+```
+
+Options of interest:
+- `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
+- `--stream` stream mode for large inputs
+- `--chunk-size <bytes>` chunk size in streaming mode (default from library)
+- `--armor` ASCII-armor output
+- `--force` overwrite output if it exists
+- `--password-file <PATH>` read password from a file (if your CLI wiring includes it)
+
+### Decrypt
+
+```bash
+enc-file dec --in secret.enc --out secret.pdf
+```
+
+### Hash
+
+```bash
+# Default blake3
+enc-file hash README.md
+# Specific algorithm (see below)
+enc-file hash README.md --alg sha256
+```
+
+### Key map (optional)
+
+If you use the library’s key map helpers, the CLI can provide small helpers to init/save/load (if wired). Check `enc-file key --help` for available subcommands.
+
+---
+
+## Library Usage
+
+### Encrypt / Decrypt bytes
+
 ```rust
-use enc_file::{encrypt_chacha, decrypt_chacha};
+use enc_file::{encrypt_bytes, decrypt_bytes, EncryptOptions, AeadAlg};
+use secrecy::SecretString;
 
-let text = b"This is a test"; //Plaintext to encrypt
-let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-let text_vec = text.to_vec(); //Convert text to Vec<u8>
+let pw = SecretString::new("correct horse battery staple".into());
+let opts = EncryptOptions {
+    alg: AeadAlg::XChaCha20Poly1305,
+    ..Default::default()
+};
 
-//Ciphertext stores the len() of encrypted content, the nonce and the actual ciphertext using bincode
-let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-//let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt 
-assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
-
-let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
-assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
+let ct = encrypt_bytes(b"hello", pw.clone(), &opts)?;
+let pt = decrypt_bytes(&ct, pw)?;
+assert_eq!(pt, b"hello");
+# Ok::<(), enc_file::EncFileError>(())
 ```
 
+### Encrypt / Decrypt files
 
-Calculate Blake3 Hash
 ```rust
-use enc_file::{get_blake3_hash};
+use enc_file::{encrypt_file, decrypt_file, EncryptOptions, AeadAlg};
+use secrecy::SecretString;
+use std::path::Path;
 
-let test = b"Calculating the BLAKE3 Hash of this text";
-let test_vec = test.to_vec(); //Convert text to Vec<u8>
-let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
-let hash2 = get_blake3_hash(test_vec).unwrap();
-assert_eq!(hash1, hash2); //Make sure hash1 == hash2
-let test2 = b"Calculating the BLAKE3 Hash of this text."; //"." added at the end
-let test2_vec = test2.to_vec();
-let hash3 = get_blake3_hash(test2_vec).unwrap();
-assert_ne!(hash1, hash3); //check that the added "." changes the hash
+let pw = SecretString::new("pw".into());
+let opts = EncryptOptions {
+    alg: AeadAlg::XChaCha20Poly1305, // or AeadAlg::Aes256GcmSiv (with "aes" feature)
+    stream: false,  // set true for large files
+    armor: false,
+    ..Default::default()
+};
+
+let out = encrypt_file(Path::new("in.bin"), Some(Path::new("out.enc")), pw.clone(), opts)?;
+let back = decrypt_file(&out, Some(Path::new("back.bin")), pw)?;
+assert!(back.exists());
+# Ok::<(), enc_file::EncFileError>(())
 ```
 
-## To do:
-- [x] Add encrypted map on harddrive to use several keys
-- [x] Add main menu to guide through the process
-- [x] Enable command-line arguments to calculate hash
-- [ ] Perhaps: Enable command-line arguments for encrpytion/decryption
+### Streaming encryption
 
-**Issues and feedback are highly appreciated.** 
+```rust
+use enc_file::{encrypt_file_streaming, EncryptOptions, AeadAlg};
+use secrecy::SecretString;
+use std::path::Path;
+
+let pw = SecretString::new("pw".into());
+let opts = EncryptOptions {
+    alg: AeadAlg::XChaCha20Poly1305,
+    stream: true,
+    chunk_size: 1024 * 1024, // 1 MiB chunks (example)
+    ..Default::default()
+};
+let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
+# Ok::<(), enc_file::EncFileError>(())
+```
+
+### Hash helpers
+
+### Supported Hash Algorithms
+
+Both the CLI and library support multiple hashing algorithms for files and byte slices:
+| Algorithm            | CLI `--alg` value(s)                                      | Output length |
+|----------------------|-----------------------------------------------------------|---------------|
+| **BLAKE3**           | `blake3`                                                  | 32 bytes      |
+| **BLAKE2b-512**      | `blake2b`                                                 | 64 bytes      |
+| **SHA-256**          | `sha256`                                                  | 32 bytes      |
+| **SHA-512**          | `sha512`                                                  | 64 bytes      |
+| **SHA3-256**         | `sha3-256`, `sha3256`, `sha3_256`                         | 32 bytes      |
+| **SHA3-512**         | `sha3-512`, `sha3512`, `sha3_512`                         | 64 bytes      |
+| **XXH3-64**          | `xxh3-64`, `xxh364`                                       | 8 bytes       |
+| **XXH3-128**         | `xxh3-128`, `xxh3128`                                     | 16 bytes      |
+| **CRC32**            | `crc32`                                                   | 4 bytes       |
+
+
+**CLI Example**:
+```bash
+# Compute SHA3-512 hash of a file
+enc-file hash --file data.bin --alg sha3-512
+
+# Use XXH3-64 (fast, non-cryptographic)
+enc-file hash --file data.bin --alg xxh3-64
+```
+
+**Library Example**:
+```rust
+use enc_file::{hash_file, to_hex_lower, HashAlg};
+let digest = hash_file(std::path::Path::new("data.bin"), HashAlg::Sha3_512)?;
+println!("{}", to_hex_lower(&digest));
+# Ok::<(), enc_file::EncFileError>(())
+```
+
+
+```rust
+use enc_file::{hash_bytes, hash_file, to_hex_lower, HashAlg};
+
+let digest = hash_bytes(b"abc", HashAlg::Sha256);
+assert_eq!(
+    to_hex_lower(&digest),
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+);
+
+let file_digest = hash_file(std::path::Path::new("README.md"), HashAlg::Blake3)?;
+println!("{}", to_hex_lower(&file_digest));
+# Ok::<(), enc_file::EncFileError>(())
+```
+
+### Keyed BLAKE3 (MAC-style)
+
+```rust
+use enc_file::hash_bytes_keyed_blake3;
+let key = [0u8; 32];
+let tag = hash_bytes_keyed_blake3(b"message", &key);
+assert_eq!(tag.len(), 32);
+# Ok::<(), ()>(())
+```
+
+### Key map helpers
+
+```rust
+use enc_file::{KeyMap, load_keymap, save_keymap};
+use secrecy::SecretString;
+use std::path::Path;
+
+let mut km = KeyMap::new();
+km.insert("service".into(), "supersecret".into());
+
+let pw = SecretString::new("pw".into());
+let path = Path::new("keymap.enc");
+save_keymap(&km, path, pw.clone())?;
+
+let loaded = load_keymap(path, pw)?;
+assert_eq!(loaded, km);
+# Ok::<(), enc_file::EncFileError>(())
+```
+
+---
+
+## Error handling
+
+All fallible APIs return `Result<_, EncFileError>`. Common cases:
+- `EncFileError::Io` I/O failures
+- `EncFileError::Crypto` AEAD failures (bad password, tamper)
+- `EncFileError::Format` header parsing/validation issues
+
+---
+
+## Tips
+
+- Use *streaming* for large files to keep memory predictable.
+- Consider `--armor` when moving ciphertexts through systems that mangle binary.
+- For CLI automation, prefer `--password-file` over interactive prompts.
+
+---
+
+## License
+
+MIT OR Apache-2.0
+
+---
+
+**Note on names**
+
+The library crate is named `enc_file` (snake_case), which is the name you use when importing it in Rust code:
+
+```rust
+use enc_file::{hash_file, HashAlg};
+```
+
+The compiled CLI binary is named `enc-file` (kebab-case), which is the name you use when invoking it from the shell:
+
+```bash
+enc-file hash --file test.txt
+```
+
+This naming separation is intentional and follows common Rust conventions.
+

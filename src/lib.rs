@@ -1,1140 +1,1079 @@
-//! # Enc_File
+#![forbid(unsafe_code)]
+//! enc_file — password-based authenticated encryption for files.
 //!
-//! Encrypt / decrypt files or calculate hash from the command line.
-//! Warning: This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties. Don't use for anything important, use VeraCrypt or similar instead.
+//! Highlights
+//! - Passwords are never stored; keys are derived with **Argon2id** (salt + stored params).
+//! - Authenticated encryption via **XChaCha20-Poly1305** (default) or **AES-256-GCM-SIV**.
+//! - Versioned **binary header** + CBOR payload. Optional ASCII armor for transport.
+//! - **Streaming mode** for very large files (constant memory; configurable chunk size).
+//! - Library API is pure (no prompts/logging). CLI sits on top.
 //!
-//! Breaking change in Version 0.3: Changed input of some functions. To encrypt/decrypt and hash use e.g. "encrypt_chacha(readfile(example.file).unwrap(), key).unwrap()". Using a keymap to work with several keys conveniently. You can import your old keys, using "Add key" -> "manually".
-//!
-//! Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compatibility.
-//!
-//! Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
-//!
-//! Encrypted files are (and have to be) stored as .crpt.
-//!
-//! Can be used as library and a binary target. Install via cargo install enc_file
-//!
-//! Panics at errors making safe execution impossible.  
-//!
-//! # Examples
-//!
-//! ```
-//! use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
-//!
-//! //Plaintext to encrypt
-//! let text = b"This a test";
-//! //Provide key. Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-//! let key: &str = "an example very very secret key.";
-//! //Convert text to Vec<u8>
-//! let text_vec = text.to_vec();
-//!
-//! //Encrypt text
-//! //Ciphertext stores the len() of encrypted content, the nonce and the actual ciphertext using bincode
-//! let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-//! //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
-//! //Check that plaintext != ciphertext
-//! assert_ne!(&ciphertext, &text);
-//!
-//! //Decrypt ciphertext to plaintext
-//! let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-//! //Check that text == plaintext
-//! assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-//! ```
-//!
-//! ```
-//!use enc_file::{get_blake3_hash};
-//!
-//!let test = b"Calculating the BLAKE3 Hash of this text";
-//!let test_vec = test.to_vec(); //Convert text to Vec<u8>
-//!let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
-//!let hash2 = get_blake3_hash(test_vec).unwrap();
-//!assert_eq!(hash1, hash2); //Make sure hash1 == hash2
-//!let test2 = b"Calculating the BLAKE3 Hash of this text."; //"." added at the end
-//!let test2_vec = test2.to_vec();
-//!let hash3 = get_blake3_hash(test2_vec).unwrap();
-//!assert_ne!(hash1, hash3); //check that the added "." changes the hash and hash1 != hash3
-//! ```
-//!
-//! See https://github.com/LazyEmpiricist/enc_file
-//!
-
-// Warning: Don't use for anything important! This crate hasn't been audited or reviewed in any sense. I created it to easily encrypt und decrypt non-important files which won't cause harm if known by third parties.
-//
-// Breaking change in Version 0.2: Using XChaCha20Poly1305 as default encryption/decryption. AES is still available using encrypt_aes or decrypt_aes to maintain backwards compability. //
-//
-// Uses XChaCha20Poly1305 (https://docs.rs/chacha20poly1305) or AES-GCM-SIV (https://docs.rs/aes-gcm-siv) for encryption, bincode (https://docs.rs/bincode) for encoding and BLAKE3 (https://docs.rs/blake3) or SHA256 / SHA512 (https://docs.rs/sha2) for hashing.
-//
-// Generate a new key.file on first run (you can also manually add keys).
-//
-// Encrypting "example.file" will create a new (encrypted) file "example.file.crpt" in the same directory.
-//
-// Decrypting "example.file.crpt" will create a new (decrypted) file "example.file" in the same directory.
-//
-// Both encrypt and decrypt override existing files!
-//
-//
-// # Examples
-//
-// Encrypt/decrypt using XChaCha20Poly1305 and random nonce
-// ```
-// use enc_file::{encrypt_chacha, decrypt_chacha, read_file};
-//
-// //Plaintext to encrypt
-// let text = b"This a test";
-// //Provide key. Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-// let key: &str = "an example very very secret key.";
-// //Convert text to Vec<u8>
-// let text_vec = text.to_vec();
-//
-// //Encrypt text
-// let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-// //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
-// //Check that plaintext != ciphertext
-// assert_ne!(&ciphertext, &text);
-//
-// //Decrypt ciphertext to plaintext
-// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-// //Check that text == plaintext
-// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-// ```
-//
-// Calculate Blake3 Hash
-// ```
-// use enc_file::{get_blake3_hash};
-//
-// let test = b"Calculating the BLAKE3 Hash of this text";
-// let test_vec = test.to_vec(); //Convert text to Vec<u8>
-// let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
-// let hash2 = get_blake3_hash(test_vec).unwrap();
-// assert_eq!(hash1, hash2); //Make sure hash1 == hash2
-// ```
+//! Safety notes
+//! - The crate is not audited or reviewed! Protects data at rest. Does not defend against compromised hosts/side channels.
 
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io;
-use std::io::prelude::*;
-use std::iter;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use rand::distr::Alphanumeric;
-use rand::{Rng, rng};
-
-use aes_gcm_siv::aead::{Aead, KeyInit};
-use aes_gcm_siv::{Aes256GcmSiv, Nonce as AES_Nonce};
-use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
-
+use aead::{Aead, KeyInit};
+use aes_gcm_siv::Aes256GcmSiv;
+use argon2::{Algorithm, Argon2, Params, Version};
+use base64::{engine::general_purpose, Engine};
+use chacha20poly1305::aead::generic_array::{typenum::U19, GenericArray};
+use chacha20poly1305::aead::stream::{DecryptorBE32, EncryptorBE32};
+use chacha20poly1305::{XChaCha20Poly1305, XNonce};
+use getrandom::fill as getrandom;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use zeroize::Zeroize;
 
-//Struct to store ciphertext, nonce and ciphertext.len() in file and to read it from file
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct Cipher {
-    len: usize,
-    rand_string: String,
-    ciphertext: Vec<u8>,
+/// Default chunk size for streaming (1 MiB).
+pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
+
+// ---------- Public types ----------
+
+/// Supported AEAD algorithms.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum AeadAlg {
+    /// XChaCha20-Poly1305 (24-byte nonces). Supports built-in streaming helpers.
+    XChaCha20Poly1305 = 1,
+    /// AES-256-GCM-SIV (12-byte nonces). We implement simple counter-based streaming.
+    Aes256GcmSiv = 2,
 }
 
-//type to simplify information from keyfile
-type Keyfile = (String, HashMap<String, String>, bool);
-
-/// Encrypts cleartext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Returns result (ciphertext as Vec<u8>).
-///
-/// # Examples
-///
-/// ```
-/// use enc_file::{encrypt_chacha, decrypt_chacha};
-///
-/// let text = b"This a test";
-/// let key: &str = "an example very very secret key.";
-/// // encrypt_chacha takes plaintext as Vec<u8>. Text needs to be transformed into vector
-/// let text_vec = text.to_vec();
-///
-/// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
-/// assert_ne!(&ciphertext, &text);
-///
-/// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-/// ```
-pub fn encrypt_chacha(
-    cleartext: Vec<u8>,
-    key: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let aead = XChaCha20Poly1305::new_from_slice(key.as_bytes())?;
-    //generate random nonce
-    let mut rng = rng();
-    let rand_string: String = iter::repeat(())
-        .map(|()| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(24)
-        .collect();
-    let nonce = XNonce::from_slice(rand_string.as_bytes());
-    let ciphertext: Vec<u8> = aead
-        .encrypt(nonce, cleartext.as_ref())
-        .expect("encryption failure!");
-    //ciphertext_to_send includes the length of the ciphertext (to confirm upon decryption), the nonce (needed to decrypt) and the actual ciphertext
-    let ciphertext_to_send = Cipher {
-        len: ciphertext.len(),
-        rand_string,
-        ciphertext,
-    };
-    //serialize using bincode. Facilitates storing in file.
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
-    Ok(encoded)
+impl Default for AeadAlg {
+    fn default() -> Self {
+        AeadAlg::XChaCha20Poly1305
+    }
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using XChaCha20Poly1305 (24-byte nonce as compared to 12-byte in ChaCha20Poly1305). Panics with wrong key. Returns result (cleartext as Vec<u8>).
-///
-/// # Examples
-///
-/// ```
-/// use enc_file::{encrypt_chacha, decrypt_chacha};
-///
-/// let text = b"This a test";
-/// let key: &str = "an example very very secret key.";
-/// // encrypt_chacha takes plaintext as Vec<u8>. Text needs to be transformed into vector
-/// let text_vec = text.to_vec();
-///
-/// let ciphertext = encrypt_chacha(text_vec, key).unwrap();
-/// assert_ne!(&ciphertext, &text);
-///
-/// let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-/// ```
-pub fn decrypt_chacha(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let aead = XChaCha20Poly1305::new_from_slice(key.as_bytes())?;
-
-    //deserialize input read from file
-    let decoded: Cipher = bincode::deserialize(&enc[..])?;
-    let (ciphertext2, len_ciphertext, rand_string2) =
-        (decoded.ciphertext, decoded.len, decoded.rand_string);
-    //check if included length of ciphertext == actual length of ciphertext
-    if ciphertext2.len() != len_ciphertext {
-        panic!("length of received ciphertext not ok")
-    };
-    let nonce = XNonce::from_slice(rand_string2.as_bytes());
-    //decrypt to plaintext
-    let plaintext: Vec<u8> = aead
-        .decrypt(nonce, ciphertext2.as_ref())
-        .expect("decryption failure!");
-    Ok(plaintext)
+/// Supported password KDFs.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum KdfAlg {
+    Argon2id = 1,
 }
 
-// Encrypts cleartext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Returns result (ciphertext as Vec<u8>).
-///
-/// # Examples
-///
-/// ```
-/// use enc_file::{encrypt_aes, decrypt_aes};
-///
-/// let text = b"This a test";
-/// let key: &str = "an example very very secret key.";
-/// // encrypt_aes takes plaintext as Vec<u8>. Text needs to be transformed into vector
-/// let text_vec = text.to_vec();
-///
-/// let ciphertext = encrypt_aes(text_vec, key).unwrap();
-/// assert_ne!(&ciphertext, &text);
-///
-/// let plaintext = decrypt_aes(ciphertext, key).unwrap();
-/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-/// ```
-pub fn encrypt_aes(cleartext: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let aead = Aes256GcmSiv::new_from_slice(key.as_bytes())?;
-    //generate random nonce
-    let mut rng = rng();
-    let rand_string: String = iter::repeat(())
-        .map(|()| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(12)
-        .collect();
-    let nonce = AES_Nonce::from_slice(rand_string.as_bytes());
-    let ciphertext: Vec<u8> = aead
-        .encrypt(nonce, cleartext.as_ref())
-        .expect("encryption failure!");
-    //ciphertext_to_send includes the length of the ciphertext (to confirm upon decryption), the nonce (needed to decrypt) and the actual ciphertext
-    let ciphertext_to_send = Cipher {
-        len: ciphertext.len(),
-        rand_string,
-        ciphertext,
-    };
-    //serialize using bincode. Facilitates storing in file.
-    let encoded: Vec<u8> = bincode::serialize(&ciphertext_to_send)?;
-    Ok(encoded)
+impl Default for KdfAlg {
+    fn default() -> Self {
+        KdfAlg::Argon2id
+    }
 }
 
-/// Decrypts ciphertext (Vec<u8>) with a key (&str) using AES256 GCM SIV. Panics with wrong key. Returns result (cleartext as Vec<u8>).
-///
-/// # Examples
-///
-/// ```
-/// use enc_file::{encrypt_aes, decrypt_aes};
-///
-/// let text = b"This a test";
-/// let key: &str = "an example very very secret key.";
-/// // encrypt_aes takes plaintext as Vec<u8>. Text needs to be transformed into vector
-/// let text_vec = text.to_vec();
-///
-/// let ciphertext = encrypt_aes(text_vec, key).unwrap();
-/// assert_ne!(&ciphertext, &text);
-///
-/// let plaintext = decrypt_aes(ciphertext, key).unwrap();
-/// assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-/// ```
-pub fn decrypt_aes(enc: Vec<u8>, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let aead = Aes256GcmSiv::new_from_slice(key.as_bytes())?;
-    //deserialize input read from file
-    let decoded: Cipher = bincode::deserialize(&enc[..])?;
-    let (ciphertext2, len_ciphertext, rand_string2) =
-        (decoded.ciphertext, decoded.len, decoded.rand_string);
-    //check if included length of ciphertext == actual length of ciphertext
-    if ciphertext2.len() != len_ciphertext {
-        panic!("length of received ciphertext not ok")
-    };
-    let nonce = AES_Nonce::from_slice(rand_string2.as_bytes());
-    //decrypt to plaintext
-    let plaintext: Vec<u8> = aead
-        .decrypt(nonce, ciphertext2.as_ref())
-        .expect("decryption failure!");
-    Ok(plaintext)
+impl EncryptOptions {
+    /// Enable/disable ASCII armor in a Clippy-friendly way.
+    pub fn with_armor(mut self, on: bool) -> Self {
+        self.armor = on;
+        self
+    }
 }
 
-/// Reads userinput from stdin and returns it as String. Returns result.
-pub fn get_input_string() -> Result<String, Box<dyn std::error::Error>> {
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    let trimmed = input.trim().to_string();
-    Ok(trimmed)
+/// Tunable KDF parameters (mem_kib in KiB).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KdfParams {
+    pub t_cost: u32,
+    pub mem_kib: u32,
+    pub parallelism: u32,
 }
 
-/// Reads file from same folder as Vec<u8>. Returns result.
-/// # Examples
-///
-/// ```
-/// use enc_file::{read_file, save_file};
-/// use std::path::PathBuf;
-/// use std::fs::remove_file;
-///
-/// let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-/// let path: PathBuf = PathBuf::from("test_abcdefg.filexyz");
-/// save_file(content.clone(), &path).unwrap();
-///
-/// let content_read: Vec<u8> = read_file(&path).unwrap();
-/// remove_file(&path).unwrap(); //remove file created for this test
-/// assert_eq!(content, content_read);
-/// ```
-pub fn read_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut f = File::open(path)?;
-    let mut buffer: Vec<u8> = Vec::new();
-
-    // read the whole file
-    f.read_to_end(&mut buffer)?;
-    //println!("{:?}", from_utf8(&buffer)?);
-    Ok(buffer)
+impl Default for KdfParams {
+    fn default() -> Self {
+        // Interactive defaults; adjust if you need higher resistance.
+        Self {
+            t_cost: 2,
+            mem_kib: 64 * 1024,
+            parallelism: 1,
+        }
+    }
 }
 
-/// Saves file to same folder. Returns result
-/// # Examples
-///
-/// ```
-/// use enc_file::save_file;
-/// use std::path::PathBuf;
-/// use std::fs::remove_file;
-///
-/// let path: PathBuf = PathBuf::from("test123.testxyz");
-/// let ciphertext: Vec<u8> = vec![1 as u8, 2 as u8];
-/// save_file(ciphertext, &path).unwrap();
-/// remove_file(&path).unwrap(); //remove file created for this text
-/// ```
-pub fn save_file(data: Vec<u8>, path: &Path) -> std::io::Result<()> {
-    let mut file = File::create(path)?;
-    file.write_all(&data)?;
+/// Options for encryption.
+#[derive(Debug, Clone)]
+pub struct EncryptOptions {
+    pub alg: AeadAlg,
+    pub kdf: KdfAlg,
+    pub kdf_params: KdfParams,
+    /// When `true`, wraps the binary file in an ASCII-armored envelope (Base64).
+    pub armor: bool,
+    /// When `true`, allow overwriting existing output file paths.
+    pub force: bool,
+    /// Stream in constant memory using chunked framing (recommended for very large files).
+    pub stream: bool,
+    /// Chunk size in bytes (only applies when `stream == true`).
+    pub chunk_size: usize,
+}
+
+impl Default for EncryptOptions {
+    fn default() -> Self {
+        Self {
+            alg: AeadAlg::default(),
+            kdf: KdfAlg::default(),
+            kdf_params: KdfParams::default(),
+            armor: false,
+            force: false,
+            stream: false,
+            chunk_size: DEFAULT_CHUNK_SIZE,
+        }
+    }
+}
+
+/// Library error type (no panics for expected failures).
+#[derive(Error, Debug)]
+pub enum EncFileError {
+    #[error("I/O error")]
+    Io(#[from] std::io::Error),
+    #[error("encryption/decryption failure")]
+    Crypto,
+    #[error("unsupported format version {0}")]
+    UnsupportedVersion(u16),
+    #[error("unsupported AEAD algorithm id {0}")]
+    UnsupportedAead(u8),
+    #[error("unsupported KDF algorithm id {0}")]
+    UnsupportedKdf(u8),
+    #[error("malformed file")]
+    Malformed,
+    #[error("invalid argument: {0}")]
+    Invalid(&'static str),
+    #[error("serialization error")]
+    Serde(#[from] serde_cbor::Error),
+}
+
+// ---------- On-disk header ----------
+
+const MAGIC: &[u8; 8] = b"ENCFILE\0";
+const VERSION: u16 = 2;
+
+/// Optional streaming info (present when the file is chunk-framed).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StreamInfo {
+    /// Chunk size used by the writer.
+    chunk_size: u32,
+    /// Nonce prefix for streaming:
+    /// - XChaCha20-Poly1305: 19 bytes (used with EncryptorBE32/DecryptorBE32)
+    /// - AES-256-GCM-SIV:    8 bytes (we append a 32-bit big-endian counter)
+    nonce_prefix: Vec<u8>,
+    // For AES-GCM-SIV we increment a 32-bit counter per chunk to build unique nonces.
+    // For XChaCha20-Poly1305 the streaming helper manages the counter internally.
+}
+
+/// Versioned header (CBOR-encoded). Adding optional fields is forward-compatible.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DiskHeader {
+    magic: [u8; 8],
+    version: u16,
+    aead_alg: u8,
+    kdf_alg: u8,
+    kdf_params: KdfParams,
+    /// Non-streaming nonce (full length) OR unused when `stream.is_some()`.
+    nonce: Vec<u8>,
+    /// Per-file KDF salt (16 bytes is typical).
+    salt: Vec<u8>,
+    /// Total ciphertext length for non-streaming files (used for validation).
+    ct_len: u64,
+    /// Present when the file is written in streaming mode.
+    stream: Option<StreamInfo>,
+}
+
+impl DiskHeader {
+    fn new_nonstream(
+        aead_alg: AeadAlg,
+        kdf_alg: KdfAlg,
+        kdf_params: KdfParams,
+        salt: Vec<u8>,
+        nonce: Vec<u8>,
+        ct_len: u64,
+    ) -> Self {
+        Self {
+            magic: *MAGIC,
+            version: VERSION,
+            aead_alg: aead_alg as u8,
+            kdf_alg: kdf_alg as u8,
+            kdf_params,
+            nonce,
+            salt,
+            ct_len,
+            stream: None,
+        }
+    }
+
+    fn new_stream(
+        aead_alg: AeadAlg,
+        kdf_alg: KdfAlg,
+        kdf_params: KdfParams,
+        salt: Vec<u8>,
+        stream: StreamInfo,
+    ) -> Self {
+        Self {
+            magic: *MAGIC,
+            version: VERSION,
+            aead_alg: aead_alg as u8,
+            kdf_alg: kdf_alg as u8,
+            kdf_params,
+            nonce: Vec::new(), // unused in streaming mode
+            salt,
+            ct_len: 0, // not used in streaming mode
+            stream: Some(stream),
+        }
+    }
+}
+
+fn write_all_atomic(path: &Path, data: &[u8], mode_600: bool) -> Result<(), EncFileError> {
+    use tempfile::NamedTempFile;
+    let parent = path
+        .parent()
+        .ok_or(EncFileError::Invalid("output path has no parent"))?;
+    fs::create_dir_all(parent)?;
+    let mut tmp = NamedTempFile::new_in(parent)?;
+    if mode_600 {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(tmp.path(), fs::Permissions::from_mode(0o600))?;
+        }
+    }
+    tmp.write_all(data)?;
+    tmp.flush()?;
+    tmp.as_file_mut().sync_all()?;
+    tmp.persist(path).map_err(|e| EncFileError::Io(e.error))?;
     Ok(())
 }
 
-/// Get BLAKE3 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
-/// Uses multithreading if len(Vec<u8>) > 128.000
-/// # Examples
-///
-/// ```
-/// use enc_file::{get_blake3_hash, read_file};
-///
-/// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-/// let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-///
-/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_blake3_hash(test.clone()).unwrap();
-/// let hash2 = get_blake3_hash(test).unwrap();
-/// let hash3 = get_blake3_hash(test2).unwrap();
-/// assert_eq!(hash1, hash2);
-/// assert_ne!(hash1, hash3);
-/// ```
-pub fn get_blake3_hash(data: Vec<u8>) -> Result<blake3::Hash, Box<dyn std::error::Error>> {
-    //check len() of Vec<u8> and for big files use rayon to improve compute time utilizing threads
-    let hash: blake3::Hash = if data.len() < 128000 {
-        blake3::hash(&data)
-    } else {
-        let input: &[u8] = &data;
-        let mut hasher = blake3::Hasher::new();
-        hasher.update_rayon(input);
-        hasher.finalize()
-    };
-    Ok(hash)
+// ---------- KDF ----------
+
+fn derive_key_argon2id(
+    password: &SecretString,
+    params: KdfParams,
+    salt: &[u8],
+) -> Result<[u8; 32], EncFileError> {
+    let argon_params = Params::new(params.mem_kib, params.t_cost, params.parallelism, None)
+        .map_err(|_| EncFileError::Invalid("invalid Argon2 params"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon_params);
+    let mut out = [0u8; 32];
+    argon2
+        .hash_password_into(password.expose_secret().as_bytes(), salt, &mut out)
+        .map_err(|_| EncFileError::Crypto)?;
+    Ok(out)
 }
 
-/// Get SHA2-256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
-/// # Examples
-///
-/// ```
-/// use enc_file::{get_sha2_256_hash, read_file};
-///
-/// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the SHA2-256 Hash of this text".to_vec();
-/// let test2 = b"Calculating the the SHA2-256 Hash of this different text".to_vec();
-///
-/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha2_256_hash(test.clone()).unwrap();
-/// let hash2 = get_sha2_256_hash(test).unwrap();
-/// let hash3 = get_sha2_256_hash(test2).unwrap();
-/// assert_eq!(hash1, hash2);
-/// assert_ne!(hash1, hash3);
-/// ```
-pub fn get_sha2_256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    use sha2::{Digest, Sha256};
+// ---------- One-shot (non-streaming) helpers ----------
 
-    // create a Sha256 object
-    let mut hasher = Sha256::new();
-
-    // write input message
-    hasher.update(data);
-
-    // read hash digest and consume hasher
-    let hash = hasher.finalize();
-    Ok(format!("{:?}", hash))
+fn aead_encrypt(
+    alg: AeadAlg,
+    key: &[u8; 32],
+    nonce_bytes: &[u8],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, EncFileError> {
+    match alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            let cipher =
+                XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+            let nonce = XNonce::from_slice(nonce_bytes);
+            cipher
+                .encrypt(nonce, plaintext)
+                .map_err(|_| EncFileError::Crypto)
+        }
+        AeadAlg::Aes256GcmSiv => {
+            use aes_gcm_siv::aead::generic_array::GenericArray;
+            let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+            let nonce = GenericArray::from_slice(nonce_bytes);
+            cipher
+                .encrypt(nonce, plaintext)
+                .map_err(|_| EncFileError::Crypto)
+        }
+    }
 }
 
-/// Get SHA2-512 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
-/// # Examples
-///
-/// ```
-/// use enc_file::{get_sha2_512_hash, read_file};
-///
-/// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the the SHA2-512 Hash of this text".to_vec();
-/// let test2 = b"Calculating the SHA2-512 Hash of this different text".to_vec();
-///
-/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha2_512_hash(test.clone()).unwrap();
-/// let hash2 = get_sha2_512_hash(test).unwrap();
-/// let hash3 = get_sha2_512_hash(test2).unwrap();
-/// assert_eq!(hash1, hash2);
-/// assert_ne!(hash1, hash3);
-/// ```
-pub fn get_sha2_512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    use sha2::{Digest, Sha512};
-
-    // create a Sha256 object
-    let mut hasher = Sha512::new();
-
-    // write input message
-    hasher.update(data);
-
-    // read hash digest and consume hasher
-    let hash = hasher.finalize();
-    Ok(format!("{:?}", hash))
+fn aead_decrypt(
+    alg: AeadAlg,
+    key: &[u8; 32],
+    nonce_bytes: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, EncFileError> {
+    match alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            let cipher =
+                XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+            let nonce = XNonce::from_slice(nonce_bytes);
+            cipher
+                .decrypt(nonce, ciphertext)
+                .map_err(|_| EncFileError::Crypto)
+        }
+        AeadAlg::Aes256GcmSiv => {
+            use aes_gcm_siv::aead::generic_array::GenericArray;
+            let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+            let nonce = GenericArray::from_slice(nonce_bytes);
+            cipher
+                .decrypt(nonce, ciphertext)
+                .map_err(|_| EncFileError::Crypto)
+        }
+    }
 }
 
-/// Get SHA3-256 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
-/// # Examples
-///
-/// ```
-/// use enc_file::{get_sha3_256_hash, read_file};
-///
-/// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the the SHA3-256 Hash of this text".to_vec();
-/// let test2 = b"Calculating the SHA3-256 Hash of this different text".to_vec();
-///
-/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha3_256_hash(test.clone()).unwrap();
-/// let hash2 = get_sha3_256_hash(test).unwrap();
-/// let hash3 = get_sha3_256_hash(test2).unwrap();
-/// assert_eq!(hash1, hash2);
-/// assert_ne!(hash1, hash3);
-/// ```
-pub fn get_sha3_256_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    use sha3::{Digest, Sha3_256};
-
-    // create a Sha256 object
-    let mut hasher = Sha3_256::new();
-
-    // write input message
-    hasher.update(data);
-
-    // read hash digest and consume hasher
-    let hash = hasher.finalize();
-    Ok(format!("{:?}", hash))
+fn nonce_len_for(alg: AeadAlg) -> usize {
+    match alg {
+        AeadAlg::XChaCha20Poly1305 => 24,
+        AeadAlg::Aes256GcmSiv => 12,
+    }
 }
 
-/// Get SHA3-512 Hash from data. File needs to be read as Vec<u8> (e.g. use enc_file::read_file()). Returns result.
-/// # Examples
+// ---------- Public API: in-memory one-shot ----------
+
+/// Encrypt a whole buffer and return the full file bytes (header + ciphertext).
 ///
-/// ```
-/// use enc_file::{get_sha3_512_hash, read_file};
-///
-/// //creating to different Vec<u8> to hash and compare
-/// let test = b"Calculating the the SHA3-512 Hash of this text".to_vec();
-/// let test2 = b"Calculating the SHA3-512 Hash of this different text".to_vec();
-///
-/// //hashing 2x test and 1x test2 to compare the hashes. hash1 == hash2 != hash3
-/// let hash1 = get_sha3_512_hash(test.clone()).unwrap();
-/// let hash2 = get_sha3_512_hash(test).unwrap();
-/// let hash3 = get_sha3_512_hash(test2).unwrap();
-/// assert_eq!(hash1, hash2);
-/// assert_ne!(hash1, hash3);
-/// ```
-pub fn get_sha3_512_hash(data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    use sha3::{Digest, Sha3_512};
+/// When `opts.armor == true`, returns ASCII-armored data (Base64) instead of binary.
+pub fn encrypt_bytes(
+    plaintext: &[u8],
+    password: SecretString,
+    opts: &EncryptOptions,
+) -> Result<Vec<u8>, EncFileError> {
+    if opts.stream {
+        return Err(EncFileError::Invalid("use streaming APIs for stream mode"));
+    }
+    let mut salt = vec![0u8; 16];
+    getrandom(&mut salt).map_err(|_| EncFileError::Crypto)?;
+    let key = derive_key_argon2id(&password, opts.kdf_params, &salt)?;
+    let mut nonce = vec![0u8; nonce_len_for(opts.alg)];
+    getrandom(&mut nonce).map_err(|_| EncFileError::Crypto)?;
 
-    // create a Sha256 object
-    let mut hasher = Sha3_512::new();
-
-    // write input message
-    hasher.update(data);
-
-    // read hash digest and consume hasher
-    let hash = hasher.finalize();
-    Ok(format!("{:?}", hash))
-}
-
-/// Allows user to choose desired hashing function. Returns result.
-pub fn choose_hashing_function() -> Result<(), Box<dyn std::error::Error>> {
-    println!(
-        "Please choose type of Hash:\n1 Blake3\n2 SHA2-256\n3 SHA2-512\n4 SHA3-256\n5 SHA3-512"
+    let ciphertext = aead_encrypt(opts.alg, &key, &nonce, plaintext)?;
+    let header = DiskHeader::new_nonstream(
+        opts.alg,
+        opts.kdf,
+        opts.kdf_params,
+        salt,
+        nonce,
+        ciphertext.len() as u64,
     );
-    //Get user input
-    let answer = get_input_string()?;
-    if answer == "1" {
-        println!("Calculating Blake3 Hash: please enter file path  ");
-        let path = PathBuf::from(get_input_string()?);
-        let hash = get_blake3_hash(read_file(&path)?)?;
-        println!("Hash Blake3: {:?}", hash);
-    } else if answer == "2" {
-        println!("Calculating SHA2-256 Hash: please enter file path  ");
-        let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha2_256_hash(read_file(&path)?)?;
-        println!("Hash SHA2-256: {:?}", hash);
-    } else if answer == "3" {
-        println!("Calculating SHA2-512 Hash: please enter file path  ");
-        let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha2_512_hash(read_file(&path)?)?;
-        println!("Hash SHA2-512: {:?}", hash);
-    } else if answer == "4" {
-        println!("Calculating SHA3-256 Hash: please enter file path  ");
-        let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha3_512_hash(read_file(&path)?)?;
-        println!("Hash SHA3-256: {:?}", hash);
-    } else if answer == "5" {
-        println!("Calculating SHA3-512 Hash: please enter file path  ");
-        let path = PathBuf::from(get_input_string()?);
-        let hash = get_sha3_512_hash(read_file(&path)?)?;
-        println!("Hash SHA3-512: {:?}", hash);
+    let header_bytes = serde_cbor::to_vec(&header)?;
+
+    let mut out = Vec::with_capacity(4 + header_bytes.len() + ciphertext.len());
+    out.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&header_bytes);
+    out.extend_from_slice(&ciphertext);
+
+    let mut key_z = key;
+    key_z.zeroize();
+
+    if opts.armor {
+        Ok(armor_encode(&out))
     } else {
-        println!("Please choose a corresponding number between 1 and 3")
+        Ok(out)
     }
-    Ok(())
 }
 
-/// Decrypts file. Taking a keymap "keymap_plaintext" and the chosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
-pub fn decrypt_file(
-    keymap_plaintext: HashMap<String, String>,
-    enc: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if keymap_plaintext.is_empty() {
-        panic!("No keys available. Please first add a key.")
+/// Decrypt full file bytes into plaintext.
+pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, EncFileError> {
+    if looks_armored(input) {
+        let bin = dearmor_decode(input)?;
+        return decrypt_bytes(&bin, password);
     }
-    println!("Decrypting file: please enter file path  ");
-    let path = PathBuf::from(get_input_string()?);
-    let ciphertext = read_file(&path)?;
-    let new_filename = PathBuf::from(
-        &path
-            .to_str()
-            .expect("Unable to parse filename!")
-            .replace(r#".crpt"#, r#""#),
-    );
 
-    println!("Existing keynames");
-    for entry in keymap_plaintext.keys() {
-        println!("{}", entry)
+    if input.len() < 4 {
+        return Err(EncFileError::Malformed);
     }
-    println!("Please provide keyname to decrypt: ");
-    let answer = get_input_string()?;
-    let key = keymap_plaintext
-        .get(&answer)
-        .expect("No key with that name");
-    let plaintext = if enc == "chacha" {
-        decrypt_chacha(ciphertext, key)?
-    } else if enc == "aes" {
-        decrypt_aes(ciphertext, key)?
-    } else {
-        panic!()
+    let header_len = u32::from_le_bytes(input[0..4].try_into().unwrap()) as usize;
+    if input.len() < 4 + header_len {
+        return Err(EncFileError::Malformed);
+    }
+    let header: DiskHeader = serde_cbor::from_slice(&input[4..4 + header_len])?;
+
+    if &header.magic != MAGIC {
+        return Err(EncFileError::Malformed);
+    }
+    if header.version != VERSION {
+        return Err(EncFileError::UnsupportedVersion(header.version));
+    }
+
+    let aead_alg = match header.aead_alg {
+        1 => AeadAlg::XChaCha20Poly1305,
+        2 => AeadAlg::Aes256GcmSiv,
+        o => return Err(EncFileError::UnsupportedAead(o)),
     };
+    let kdf_alg = match header.kdf_alg {
+        1 => KdfAlg::Argon2id,
+        o => return Err(EncFileError::UnsupportedKdf(o)),
+    };
+    let _ = kdf_alg;
 
-    save_file(plaintext, &new_filename)?;
-    Ok(())
+    let key = derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
+    let body = &input[4 + header_len..];
+
+    if let Some(stream) = &header.stream {
+        // Streaming framed ciphertext in memory: parse frames.
+        let pt = decrypt_stream_into_vec(aead_alg, &key, stream, body)?;
+        let mut key_z = key;
+        key_z.zeroize();
+        return Ok(pt);
+    }
+
+    if body.len() as u64 != header.ct_len {
+        return Err(EncFileError::Malformed);
+    }
+    let pt = aead_decrypt(aead_alg, &key, &header.nonce, body)?;
+    let mut key_z = key;
+    key_z.zeroize();
+    Ok(pt)
 }
 
-/// Encrypts file. Taking a keymap "keymap_plaintext" and the choosen encryption "enc" ("chacha" for ChaCha20Poly1305 or "aes" for AES256-GCM-SIV). Returns result.
+// ---------- Public API: files (one-shot) ----------
+
+/// Encrypt a file to disk. If `output` is `None`, appends ".enc".
+/// Use `opts.stream = true` to enable streaming mode (see `encrypt_file_streaming`).
 pub fn encrypt_file(
-    keymap_plaintext: HashMap<String, String>,
-    enc: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if keymap_plaintext.is_empty() {
-        panic!("No keys available. Please first add a key.")
+    input: &Path,
+    output: Option<&Path>,
+    password: SecretString,
+    opts: EncryptOptions,
+) -> Result<PathBuf, EncFileError> {
+    if opts.stream {
+        return encrypt_file_streaming(input, output, password, opts);
     }
-    println!("Encrypting file: please enter file path  ");
-    let path = PathBuf::from(get_input_string()?);
-
-    let new_filename = PathBuf::from(
-        path.clone()
-            .into_os_string()
-            .into_string()
-            .expect("Unable to parse filename!")
-            + r#".crpt"#,
-    );
-
-    println!("Existing keynames");
-    for entry in keymap_plaintext.keys() {
-        println!("{}", entry)
+    let mut data = Vec::new();
+    File::open(input)?.read_to_end(&mut data)?;
+    let out_bytes = encrypt_bytes(&data, password, &opts)?;
+    let out_path = default_out_path(input, output, "enc");
+    if out_path.exists() && !opts.force {
+        return Err(EncFileError::Invalid(
+            "output exists; use --force to overwrite",
+        ));
     }
-    let cleartext = read_file(&path)?;
-    println!("Please provide keyname to encrypt: ");
-    let answer = get_input_string()?;
-    let key = keymap_plaintext
-        .get(&answer)
-        .expect("No key with that name");
-    let ciphertext = if enc == "chacha" {
-        encrypt_chacha(cleartext, key)?
-    } else if enc == "aes" {
-        encrypt_aes(cleartext, key)?
-    } else {
-        panic!()
-    };
-
-    save_file(ciphertext, &new_filename)?;
-    Ok(())
+    write_all_atomic(&out_path, &out_bytes, false)?;
+    Ok(out_path)
 }
 
-/// Removes choosen key from keymap. Taking a keymap "keymap_plaintext" and user provided password.
-pub fn remove_key(
-    mut keymap_plaintext: HashMap<String, String>,
-    password: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if keymap_plaintext.is_empty() {
-        panic!("No keys available. Please first add a key.")
+/// Decrypt a file from disk. If `output` is `None`, strips ".enc" or uses ".dec".
+pub fn decrypt_file(
+    input: &Path,
+    output: Option<&Path>,
+    password: SecretString,
+) -> Result<PathBuf, EncFileError> {
+    let mut data = Vec::new();
+    File::open(input)?.read_to_end(&mut data)?;
+    let pt = decrypt_bytes(&data, password)?;
+    let out_path = default_out_path_for_decrypt(input, output);
+    if out_path.exists() {
+        return Err(EncFileError::Invalid(
+            "output exists; use --force (via CLI) to overwrite",
+        ));
     }
-    println!("Existing keynames");
-    for entry in keymap_plaintext.keys() {
-        println!("{}", entry)
-    }
-    println!("Please provide keyname to delete: ");
-    let answer = get_input_string()?;
-
-    match keymap_plaintext.remove(&answer) {
-        Some(_) => println!("Key removed"),
-        None => println!("No key of this name"),
-    }
-
-    //Check if there is a key in keymap
-    if keymap_plaintext.is_empty() {
-        println!("Warning: No keys available. Please create a new entry")
-    }
-    let encoded: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password)?;
-    fs::write("key.file", encoded)?;
-    Ok(())
+    write_all_atomic(&out_path, &pt, false)?;
+    Ok(out_path)
 }
 
-/// Adds key to keymap. Taking a keymap "keymap_plaintext" and user provided password.
-pub fn add_key(
-    mut keymap_plaintext: HashMap<String, String>,
-    password: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Please choose name for new key: ");
-
-    //Ask for a name to be associated with the new key
-    let key_name = get_input_string()?;
-
-    //Ask if random key should be generate or key will be provided by user
-    println!(
-        "Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8"
-    );
-    let answer = get_input_string()?;
-    let mut key = String::new();
-    if answer == "r" {
-        let mut rng = rng();
-        let key_rand: String = iter::repeat(())
-            .map(|()| rng.sample(Alphanumeric))
-            .map(char::from)
-            .take(32)
-            .collect();
-        key.push_str(&key_rand);
-    } else if answer == "m" {
-        println!("Please enter key. Must be valid 32-long char-utf8");
-        let answer = get_input_string()?;
-        // String is always valid utf8, len() still needs to be checked
-        if answer.len() == 32 {
-            key.push_str(&answer);
+fn default_out_path(input: &Path, output: Option<&Path>, ext: &str) -> PathBuf {
+    output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+        let mut p = input.to_path_buf();
+        if let Some(e) = input.extension().and_then(|s| s.to_str()) {
+            p.set_extension(format!("{e}.{ext}"));
         } else {
-            println!("Please provide a valid 32-long char-utf8")
+            p.set_extension(ext);
         }
-    } else {
-        //to do
-        panic!();
-    }
-    keymap_plaintext.insert(key_name.trim().to_string(), key.trim().to_string());
+        p
+    })
+}
 
-    let encoded: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password)?;
-    fs::write("key.file", encoded)?;
+fn default_out_path_for_decrypt(input: &Path, output: Option<&Path>) -> PathBuf {
+    output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+        let s = input.to_string_lossy();
+        if let Some(stripped) = s.strip_suffix(".enc") {
+            PathBuf::from(stripped)
+        } else {
+            let mut p = input.to_path_buf();
+            p.set_extension("dec");
+            p
+        }
+    })
+}
+
+// ---------- Optional key map (encrypted file holding named keys) ----------
+
+/// An encrypted key map: name -> raw 32-byte key (opaque).
+pub type KeyMap = HashMap<String, Vec<u8>>;
+
+/// Load a key map using a password.
+pub fn load_keymap(path: &Path, password: SecretString) -> Result<KeyMap, EncFileError> {
+    let mut data = Vec::new();
+    File::open(path)?.read_to_end(&mut data)?;
+    let pt = decrypt_bytes(&data, password)?;
+    let map: KeyMap = serde_cbor::from_slice(&pt)?;
+    Ok(map)
+}
+
+/// Save a key map using a password (0600 perms on Unix).
+pub fn save_keymap(
+    path: &Path,
+    password: SecretString,
+    map: &KeyMap,
+    opts: &EncryptOptions,
+) -> Result<(), EncFileError> {
+    let pt = serde_cbor::to_vec(map)?;
+    let bytes = if opts.stream {
+        return Err(EncFileError::Invalid("keymap: streaming not supported"));
+    } else {
+        encrypt_bytes(&pt, password, opts)?
+    };
+    write_all_atomic(path, &bytes, true)?;
     Ok(())
 }
 
-/// Creates a new keyfile. User can choose to create a random key or manually enter 32-long char-utf8 password in a keyfile. Key has to be valid utf8. Returns result (password, keyfile and bool (true if new keyfile way created)).
-pub fn create_new_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
-    println!("No keyfile found. Create a new one? Y/N");
-    let answer = get_input_string()?;
-    if answer == "Y" {
-        //Enter a password to encrypt key.file
-        println!("Please enter a password (length > 8) to encrypt the keyfile: ");
+// ---------- ASCII armor (Base64) ----------
 
-        let mut password = String::new();
-        io::stdin()
-            .read_line(&mut password)
-            .expect("Failed to read line");
-        if password.len() < 8 {
-            panic!("Password too short!")
-        }
-        let mut file = File::create("key.file")?;
-        println!("Please choose name for new key: ");
+fn armor_encode(binary: &[u8]) -> Vec<u8> {
+    let b64 = general_purpose::STANDARD.encode(binary);
+    let mut out = Vec::new();
+    out.extend_from_slice(b"-----BEGIN ENCFILE-----\n");
+    out.extend_from_slice(b64.as_bytes());
+    out.extend_from_slice(b"\n-----END ENCFILE-----\n");
+    out
+}
 
-        //Ask for a name to be associated with the new key
-        let key_name = get_input_string()?;
+fn dearmor_decode(data: &[u8]) -> Result<Vec<u8>, EncFileError> {
+    let s = std::str::from_utf8(data).map_err(|_| EncFileError::Malformed)?;
+    let s = s.trim();
+    let body = s
+        .strip_prefix("-----BEGIN ENCFILE-----")
+        .and_then(|x| x.strip_suffix("-----END ENCFILE-----"))
+        .ok_or(EncFileError::Malformed)?;
+    let body = body.trim_matches(&['\r', '\n', ' '][..]).trim();
+    general_purpose::STANDARD
+        .decode(body)
+        .map_err(|_| EncFileError::Malformed)
+}
 
-        //Ask if random key should be generate or key will be provided by user
-        println!(
-            "Create new random key (r) or manually enter a key (m). Key needs to be valid 32-long char-utf8"
-        );
-        let answer = get_input_string()?;
-        let mut key = String::new();
-        if answer == "r" {
-            let mut rng = rng();
-            let key_rand: String = iter::repeat(())
-                .map(|()| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(32)
-                .collect();
-            key.push_str(&key_rand);
-        } else if answer == "m" {
-            println!("Please enter key. Must be valid 32-long char-utf8");
-            let answer = get_input_string()?;
-            // String is always valid utf8, len() still needs to be checked
-            if answer.len() == 32 {
-                key.push_str(&answer);
-            } else {
-                println!("Please provide a valid 32-long char-utf8")
+pub fn looks_armored(data: &[u8]) -> bool {
+    data.starts_with(b"-----BEGIN ENCFILE-----")
+}
+
+// ---------- Streaming encryption/decryption ----------
+//
+// We support two streaming modes:
+// - XChaCha20-Poly1305: use EncryptorBE32/DecryptorBE32 with a 19-byte nonce prefix.
+// - AES-256-GCM-SIV: manual per-chunk nonces: 8-byte random prefix + 32-bit BE counter.
+// Frame format for both algorithms:
+//   [u8 flags][u32 ct_len_be][ct_bytes]
+// flags: bit0 set => last chunk.
+
+const FLAG_FINAL: u8 = 1;
+
+/// Encrypt a file in streaming mode (constant memory).
+pub fn encrypt_file_streaming(
+    input: &Path,
+    output: Option<&Path>,
+    password: SecretString,
+    mut opts: EncryptOptions,
+) -> Result<PathBuf, EncFileError> {
+    if !opts.stream {
+        opts.stream = true;
+    }
+    let chunk = opts.chunk_size.max(1024);
+    let out_path = default_out_path(input, output, "enc");
+
+    if out_path.exists() && !opts.force {
+        return Err(EncFileError::Invalid(
+            "output exists; use --force to overwrite",
+        ));
+    }
+
+    // Derive key & build header
+    let mut salt = vec![0u8; 16];
+    getrandom(&mut salt).map_err(|_| EncFileError::Crypto)?;
+    let key = derive_key_argon2id(&password, opts.kdf_params, &salt)?;
+
+    // Prepare stream info
+    let stream_info = match opts.alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            let mut prefix = vec![0u8; 19];
+            getrandom(&mut prefix).map_err(|_| EncFileError::Crypto)?;
+            StreamInfo {
+                chunk_size: chunk as u32,
+                nonce_prefix: prefix,
             }
-        } else {
-            //to do
-            panic!();
+        }
+        AeadAlg::Aes256GcmSiv => {
+            // 8-byte prefix + 32-bit counter per chunk => unique nonces.
+            let mut prefix = vec![0u8; 8];
+            getrandom(&mut prefix).map_err(|_| EncFileError::Crypto)?;
+            StreamInfo {
+                chunk_size: chunk as u32,
+                nonce_prefix: prefix,
+            }
+        }
+    };
+
+    let header = DiskHeader::new_stream(
+        opts.alg,
+        opts.kdf,
+        opts.kdf_params,
+        salt,
+        stream_info.clone(),
+    );
+    let header_bytes = serde_cbor::to_vec(&header)?;
+
+    // Write header then stream frames
+    use tempfile::NamedTempFile;
+    let parent = out_path.parent().unwrap();
+    fs::create_dir_all(parent)?;
+    let mut tmp = NamedTempFile::new_in(parent)?;
+    tmp.write_all(&(header_bytes.len() as u32).to_le_bytes())?;
+    tmp.write_all(&header_bytes)?;
+
+    // Input/output streaming
+    let mut infile = File::open(input)?;
+    let mut buf = vec![0u8; chunk];
+    match opts.alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            // Build cipher from derived key (accepts &[u8])
+            let cipher =
+                XChaCha20Poly1305::new_from_slice(&key).map_err(|_| EncFileError::Crypto)?;
+
+            // Convert Vec<u8> nonce prefix (must be 19 bytes) to GenericArray nonce reference
+            let prefix_arr: [u8; 19] = stream_info
+                .nonce_prefix
+                .as_slice()
+                .try_into()
+                .map_err(|_| EncFileError::Malformed)?;
+            let nonce_prefix: &GenericArray<u8, U19> =
+                GenericArray::<u8, U19>::from_slice(&prefix_arr);
+
+            // Initialize the streaming encryptor
+            let mut enc = EncryptorBE32::from_aead(cipher, nonce_prefix);
+
+            // Write non-final frames with encrypt_next
+            loop {
+                let n = infile.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                let pt = &buf[..n];
+                let ct = enc.encrypt_next(pt).map_err(|_| EncFileError::Crypto)?;
+                write_frame(&mut tmp, &ct, false)?;
+            }
+
+            // Emit a final empty frame (encrypt_last consumes the encryptor)
+            let ct_final = enc
+                .encrypt_last(&[] as &[u8])
+                .map_err(|_| EncFileError::Crypto)?;
+            write_frame(&mut tmp, &ct_final, true)?;
         }
 
-        let mut new_key_map = HashMap::new();
+        AeadAlg::Aes256GcmSiv => {
+            use aes_gcm_siv::aead::generic_array::GenericArray;
+            let cipher = Aes256GcmSiv::new_from_slice(&key).map_err(|_| EncFileError::Crypto)?;
+            // Counter will be appended to 8-byte prefix => 12-byte nonce.
+            let prefix = &stream_info.nonce_prefix;
+            let mut counter: u32 = 0;
+            loop {
+                let n = infile.read(&mut buf)?;
+                let is_final = n == 0 || n < chunk;
+                let pt = &buf[..n];
+                // nonce = prefix (8 bytes) || counter_be (4 bytes)
+                let mut nonce_bytes = [0u8; 12];
+                nonce_bytes[..8].copy_from_slice(prefix);
+                nonce_bytes[8..].copy_from_slice(&counter.to_be_bytes());
+                counter = counter.wrapping_add(1);
 
-        new_key_map.insert(key_name, key);
-        let encoded: Vec<u8> = encrypt_hashmap(new_key_map.clone(), &password)?;
+                let ct = cipher
+                    .encrypt(GenericArray::from_slice(&nonce_bytes), pt)
+                    .map_err(|_| EncFileError::Crypto)?;
+                write_frame(&mut tmp, &ct, is_final)?;
+                if is_final {
+                    break;
+                }
+            }
+        }
+    }
 
-        file.write_all(&encoded)?;
-        Ok((password, new_key_map, true))
-    } else {
-        //TO DO
-        panic!()
+    tmp.as_file_mut().flush()?;
+    tmp.as_file_mut().sync_all()?;
+    tmp.persist(&out_path)
+        .map_err(|e| EncFileError::Io(e.error))?;
+
+    // Zeroize derived key
+    let mut key_z = key;
+    key_z.zeroize();
+
+    Ok(out_path)
+}
+
+/// Helper: write a single framed chunk.
+fn write_frame<W: Write>(mut w: W, ct: &[u8], is_final: bool) -> Result<(), EncFileError> {
+    let flags = if is_final { FLAG_FINAL } else { 0 };
+    w.write_all(&[flags])?;
+    w.write_all(&(ct.len() as u32).to_be_bytes())?;
+    w.write_all(ct)?;
+    Ok(())
+}
+
+/// Decrypt framed ciphertext (in-memory) using the given header stream info.
+fn decrypt_stream_into_vec(
+    alg: AeadAlg,
+    key: &[u8; 32],
+    stream: &StreamInfo,
+    body: &[u8],
+) -> Result<Vec<u8>, EncFileError> {
+    let mut out = Vec::new();
+    let mut idx = 0usize;
+
+    match alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            // Build cipher from derived key (accepts &[u8])
+            let cipher =
+                XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+
+            // Convert stored nonce prefix (must be 19 bytes) to GenericArray
+            let prefix_arr: [u8; 19] = stream
+                .nonce_prefix
+                .as_slice()
+                .try_into()
+                .map_err(|_| EncFileError::Malformed)?;
+            let nonce_prefix: &GenericArray<u8, U19> =
+                GenericArray::<u8, U19>::from_slice(&prefix_arr);
+
+            // Initialize the streaming decryptor
+            let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
+
+            // Walk all frames: decrypt_next for non-final frames,
+            // remember the final frame ciphertext and decrypt it once at the end.
+            let mut idx = 0usize;
+            //let mut final_ct: Option<&[u8]> = None;
+
+            loop {
+                if idx + 1 + 4 > body.len() {
+                    return Err(EncFileError::Malformed);
+                }
+
+                let flags = body[idx];
+                idx += 1;
+                let len = u32::from_be_bytes(body[idx..idx + 4].try_into().unwrap()) as usize;
+                idx += 4;
+                if idx + len > body.len() {
+                    return Err(EncFileError::Malformed);
+                }
+
+                let ct = &body[idx..idx + len];
+                idx += len;
+
+                if (flags & FLAG_FINAL) != 0 {
+                    // Final chunk: decrypt_last consumes den Decryptor
+                    let pt_final = dec.decrypt_last(ct).map_err(|_| EncFileError::Crypto)?;
+                    out.extend_from_slice(&pt_final);
+                    break;
+                } else {
+                    // Non-final chunk: decrypt_next
+                    let pt = dec.decrypt_next(ct).map_err(|_| EncFileError::Crypto)?;
+                    out.extend_from_slice(&pt);
+                }
+            }
+        }
+
+        AeadAlg::Aes256GcmSiv => {
+            let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
+            let prefix = &stream.nonce_prefix;
+            let mut counter: u32 = 0;
+            loop {
+                if idx + 1 + 4 > body.len() {
+                    return Err(EncFileError::Malformed);
+                }
+                let flags = body[idx];
+                idx += 1;
+                let len = u32::from_be_bytes(body[idx..idx + 4].try_into().unwrap()) as usize;
+                idx += 4;
+                if idx + len > body.len() {
+                    return Err(EncFileError::Malformed);
+                }
+                let ct = &body[idx..idx + len];
+                idx += len;
+
+                let mut nonce_bytes = [0u8; 12];
+                nonce_bytes[..8].copy_from_slice(prefix);
+                nonce_bytes[8..].copy_from_slice(&counter.to_be_bytes());
+                counter = counter.wrapping_add(1);
+
+                let pt = cipher
+                    .decrypt(GenericArray::from_slice(&nonce_bytes), ct)
+                    .map_err(|_| EncFileError::Crypto)?;
+                out.extend_from_slice(&pt);
+                if (flags & FLAG_FINAL) != 0 {
+                    break;
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+// ---------- Hashing API ----------
+
+use std::io::{self, BufReader};
+
+/// Common hashing algorithms your library supports.
+///
+/// Default is `Blake3` for performance and modern security properties.
+/// Add or remove variants as needed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HashAlg {
+    /// BLAKE3 (32-byte digest). Default.
+    #[default]
+    Blake3,
+    /// SHA-256 (32-byte digest)
+    Sha256,
+    /// SHA-512 (64-byte digest)
+    Sha512,
+    /// SHA3-256 (32-byte digest)
+    Sha3_256,
+    /// SHA3-512 (64-byte digest)
+    Sha3_512,
+    /// BLAKE2b (64-byte digest; unkeyed mode here)
+    Blake2b,
+    /// XXH3 64-bit (16-byte digest; NOT cryptographic — integrity only)
+    Xxh3_64,
+    /// XXH3 128-bit (16-byte digest; NOT cryptographic — integrity only)
+    Xxh3_128,
+    /// CRC32 (4-byte checksum; NOT cryptographic — integrity only)
+    Crc32,
+}
+
+/// Hash a byte slice and return the raw digest bytes.
+pub fn hash_bytes(data: &[u8], alg: HashAlg) -> Vec<u8> {
+    match alg {
+        HashAlg::Blake3 => {
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(data);
+            hasher.finalize().as_bytes().to_vec() // 32
+        }
+        HashAlg::Sha256 => {
+            use sha2::{Digest, Sha256};
+            Sha256::digest(data).to_vec() // 32
+        }
+        HashAlg::Sha512 => {
+            use sha2::{Digest, Sha512};
+            Sha512::digest(data).to_vec() // 64
+        }
+        HashAlg::Sha3_256 => {
+            use sha3::{Digest, Sha3_256};
+            Sha3_256::digest(data).to_vec() // 32
+        }
+        HashAlg::Sha3_512 => {
+            use sha3::{Digest, Sha3_512};
+            Sha3_512::digest(data).to_vec() // 64
+        }
+        HashAlg::Blake2b => {
+            use blake2::{Blake2b512, Digest};
+            Blake2b512::digest(data).to_vec() // 64
+        }
+        HashAlg::Xxh3_64 => {
+            use xxhash_rust::xxh3::xxh3_64;
+            xxh3_64(data).to_be_bytes().to_vec() // 8
+        }
+        HashAlg::Xxh3_128 => {
+            use xxhash_rust::xxh3::xxh3_128;
+            xxh3_128(data).to_be_bytes().to_vec() // 16
+        }
+        HashAlg::Crc32 => {
+            use crc::{Crc, CRC_32_ISO_HDLC};
+            let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
+            let mut d = crc.digest();
+            d.update(data);
+            d.finalize().to_be_bytes().to_vec() // 4
+        }
     }
 }
 
-/// Read keyfile to keymap. Asks for userpassword. Returns result (password, keymap and bool(false as no new keymap was created))
-pub fn read_keyfile() -> Result<Keyfile, Box<dyn std::error::Error>> {
-    println!("Enter password: ");
-    let password = get_input_string()?;
-    let hashed_password = blake3::hash(password.trim().as_bytes());
-    //println!("{:?}", hashed_password);
-    let mut f = File::open("key.file").expect("Could not open key.file");
-    let mut buffer = Vec::new();
-    f.read_to_end(&mut buffer)?;
-    let key = Key::from_slice(hashed_password.as_bytes());
+/// Hash a file (streaming) and return the raw digest bytes.
+///
+/// Uses a buffered reader and feeds the hasher in chunks.
+/// Returns `EncFileError::Io` (assuming you have that) on I/O failures.
+pub fn hash_file(path: &Path, alg: HashAlg) -> Result<Vec<u8>, EncFileError> {
+    let mut file = File::open(path)?;
+    let mut reader = BufReader::new(&mut file);
+    let mut buf = vec![0u8; 64 * 1024];
 
-    let decoded: Cipher = bincode::deserialize(&buffer[..])?;
-    let (ciphertext, len_ciphertext, rand_string) =
-        (decoded.ciphertext, decoded.len, decoded.rand_string);
-    if ciphertext.len() != len_ciphertext {
-        panic!("length of received ciphertext not ok")
-    };
-    let nonce = XNonce::from_slice(rand_string.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
+    match alg {
+        HashAlg::Blake3 => {
+            let mut h = blake3::Hasher::new();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().as_bytes().to_vec())
+        }
+        HashAlg::Sha256 => {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::default();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().to_vec())
+        }
+        HashAlg::Sha512 => {
+            use sha2::{Digest, Sha512};
+            let mut h = Sha512::default();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().to_vec())
+        }
+        HashAlg::Sha3_256 => {
+            use sha3::{Digest, Sha3_256};
+            let mut h = Sha3_256::default();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().to_vec())
+        }
+        HashAlg::Sha3_512 => {
+            use sha3::{Digest, Sha3_512};
+            let mut h = Sha3_512::default();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().to_vec())
+        }
+        HashAlg::Blake2b => {
+            use blake2::{Blake2b512, Digest};
+            let mut h = Blake2b512::default(); // 64-Byte Output
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.finalize().to_vec())
+        }
+        HashAlg::Xxh3_64 => {
+            use xxhash_rust::xxh3::Xxh3;
+            let mut h = Xxh3::new();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.digest().to_be_bytes().to_vec())
+        }
 
-    let plaintext: Vec<u8> = aead
-        .decrypt(nonce, ciphertext.as_ref())
-        .expect("decryption failure!");
-    let keymap_plaintext: HashMap<String, String> = bincode::deserialize(&plaintext[..])?;
-    println!("Keys found in key.file:\n{:?}\n", &keymap_plaintext);
-    Ok((password, keymap_plaintext, false))
+        HashAlg::Xxh3_128 => {
+            use xxhash_rust::xxh3::Xxh3;
+            let mut h = Xxh3::new();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                h.update(&buf[..n]);
+            }
+            Ok(h.digest128().to_be_bytes().to_vec())
+        }
+        HashAlg::Crc32 => {
+            use crc::{Crc, CRC_32_ISO_HDLC};
+            let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
+            let mut d = crc.digest();
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                d.update(&buf[..n]);
+            }
+            Ok(d.finalize().to_be_bytes().to_vec())
+        }
+    }
 }
 
-/// Encrypt a given hashmap with a given password using ChaCha20Poly1305. Returns result (Vec<u8>)
-/// # Examples
+/// Keyed BLAKE3 hash (32-byte key). Only for BLAKE3 — other algorithms ignore keys or use HMACs.
 ///
-/// ```
-/// use std::collections::HashMap;
-/// use aes_gcm_siv::aead::{Aead};
-/// use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
-/// use enc_file::{encrypt_hashmap};
-/// use serde::{Deserialize, Serialize};
-///
-/// //create example keymap. Keymap consists of key-name and actual-key. Attention: Valid keys for cryptography needs to be 32-chars utf8!
-/// let mut keymap_plaintext: HashMap<String, String> = HashMap::new();
-/// keymap_plaintext.insert("Hello".to_string(), "world".to_string());
-///
-/// //create (extremely insecure) password
-/// let password: String = "Password".to_string();
-/// //encrypt keymap with password
-/// let encrypted: Vec<u8> = encrypt_hashmap(keymap_plaintext.clone(), &password).unwrap();
-///
-/// //test that encrypting 2 times results in different Vec<u8>
-/// let encrypted2: Vec<u8> = encrypt_hashmap(keymap_plaintext, &password).unwrap();
-/// assert_ne!(encrypted, encrypted2);
-/// ```
-pub fn encrypt_hashmap(
-    keymap_plaintext: HashMap<String, String>,
-    password: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let encoded: Vec<u8> = bincode::serialize(&keymap_plaintext).expect("Unable to encode keymap!");
-
-    //encrypt Hashmap with keys
-    let mut rng = rng();
-    let rand_string: String = iter::repeat(())
-        .map(|()| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(24)
-        .collect();
-    let nonce = XNonce::from_slice(rand_string.as_bytes());
-    let hashed_password = blake3::hash(password.trim().as_bytes());
-    let key = Key::from_slice(hashed_password.as_bytes());
-    let aead = XChaCha20Poly1305::new(key);
-    let ciphertext: Vec<u8> = aead
-        .encrypt(nonce, encoded.as_ref())
-        .expect("encryption failure!");
-    let ciphertext_to_send = Cipher {
-        len: ciphertext.len(),
-        rand_string,
-        ciphertext,
-    };
-    let encoded: Vec<u8> =
-        bincode::serialize(&ciphertext_to_send).expect("Unable to encode keymap!");
-    Ok(encoded)
+/// # Safety
+/// - This is *not* a KDF. It is a keyed hash for authentication (like a MAC).
+/// - `key32` **must** be a 32-byte secret key.
+pub fn hash_bytes_keyed_blake3(data: &[u8], key32: &[u8; 32]) -> [u8; 32] {
+    blake3::keyed_hash(key32, data).into()
 }
 
+/// Keyed BLAKE3 file hash (streaming).
+pub fn hash_file_keyed_blake3(path: &Path, key32: &[u8; 32]) -> Result<[u8; 32], EncFileError> {
+    let mut file = File::open(path)?;
+    let mut reader = BufReader::new(&mut file);
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut hasher = blake3::Hasher::new_keyed(key32);
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok((*hasher.finalize().as_bytes()).into())
+}
+
+/// Helper to hex-encode (lower-case) for display or logs.
+pub fn to_hex_lower(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+// ---------- Tests ----------
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::remove_file;
+    use secrecy::SecretString;
+
     #[test]
-    fn test_save_read_file() {
-        let content: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let path: PathBuf = PathBuf::from("test_abcdefg.file");
-        save_file(content.clone(), &path).unwrap();
-        let content_read: Vec<u8> = read_file(&path).unwrap();
-        remove_file(&path).unwrap(); //remove file created for this test
-        assert_eq!(content, content_read);
+    fn round_trip_small_default() {
+        let pw = SecretString::new("pw".into());
+        let ct = encrypt_bytes(b"hi", pw.clone(), &EncryptOptions::default()).unwrap();
+        let pt = decrypt_bytes(&ct, pw).unwrap();
+        assert_eq!(pt, b"hi");
     }
 
     #[test]
-    fn test_encrypt_decrypt_aes() {
-        let text = b"This a test";
-        let key: &str = "an example very very secret key.";
-        let text_vec = text.to_vec();
-        let ciphertext = encrypt_aes(text_vec, key).unwrap();
-        assert_ne!(&ciphertext, &text);
-        let plaintext = decrypt_aes(ciphertext, key).unwrap();
-        assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
+    fn wrong_password_fails() {
+        let ct = encrypt_bytes(
+            b"data",
+            SecretString::new("pw1".into()),
+            &EncryptOptions::default(),
+        )
+        .unwrap();
+        let bad = SecretString::new("pw2".into());
+        assert!(matches!(decrypt_bytes(&ct, bad), Err(EncFileError::Crypto)));
     }
 
     #[test]
-    fn test_encrypt_decrypt_chacha() {
-        let text = b"This a test";
-        let key: &str = "an example very very secret key.";
-        let text_vec = text.to_vec();
-        let ciphertext = encrypt_chacha(text_vec, key).unwrap();
-        assert_ne!(&ciphertext, &text);
-        let plaintext = decrypt_chacha(ciphertext, key).unwrap();
-        assert_eq!(format!("{:?}", text), format!("{:?}", plaintext));
-    }
+    fn armor_works() {
+        use secrecy::SecretString;
 
-    #[test]
-    fn test_multiple_encrypt_unequal_chacha() {
-        use rand::distr::Uniform;
-        let range = Uniform::new(0, 255).unwrap();
+        let pw = SecretString::new("pw".into());
+        let opts = EncryptOptions::default().with_armor(true);
 
-        let mut i = 1;
-        while i < 1000 {
-            let mut rng = rng();
-            let key: String = iter::repeat(())
-                .map(|()| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(32)
-                .collect();
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
-            let ciphertext1 = encrypt_chacha(content.clone(), &key).unwrap();
-            let ciphertext2 = encrypt_chacha(content.clone(), &key).unwrap();
-            let ciphertext3 = encrypt_chacha(content.clone(), &key).unwrap();
-            let ciphertext4 = encrypt_chacha(content.clone(), &key).unwrap();
-            let ciphertext5 = encrypt_chacha(content, &key).unwrap();
-            assert_ne!(&ciphertext1, &ciphertext2);
-            assert_ne!(&ciphertext1, &ciphertext3);
-            assert_ne!(&ciphertext1, &ciphertext4);
-            assert_ne!(&ciphertext1, &ciphertext5);
-            assert_ne!(&ciphertext2, &ciphertext3);
-            assert_ne!(&ciphertext2, &ciphertext4);
-            assert_ne!(&ciphertext2, &ciphertext5);
-            assert_ne!(&ciphertext3, &ciphertext4);
-            assert_ne!(&ciphertext3, &ciphertext5);
-            assert_ne!(&ciphertext4, &ciphertext5);
-            i += 1;
-        }
-    }
-
-    #[test]
-    fn test_multiple_encrypt_unequal_aes() {
-        use rand::distr::Uniform;
-        let range = Uniform::new(0, 255).unwrap();
-        let mut i = 1;
-        while i < 1000 {
-            let mut rng = rng();
-            let key: String = iter::repeat(())
-                .map(|()| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(32)
-                .collect();
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
-            let ciphertext1 = encrypt_aes(content.clone(), &key).unwrap();
-            let ciphertext2 = encrypt_aes(content.clone(), &key).unwrap();
-            let ciphertext3 = encrypt_aes(content.clone(), &key).unwrap();
-            let ciphertext4 = encrypt_aes(content.clone(), &key).unwrap();
-            let ciphertext5 = encrypt_aes(content, &key).unwrap();
-            assert_ne!(&ciphertext1, &ciphertext2);
-            assert_ne!(&ciphertext1, &ciphertext3);
-            assert_ne!(&ciphertext1, &ciphertext4);
-            assert_ne!(&ciphertext1, &ciphertext5);
-            assert_ne!(&ciphertext2, &ciphertext3);
-            assert_ne!(&ciphertext2, &ciphertext4);
-            assert_ne!(&ciphertext2, &ciphertext5);
-            assert_ne!(&ciphertext3, &ciphertext4);
-            assert_ne!(&ciphertext3, &ciphertext5);
-            assert_ne!(&ciphertext4, &ciphertext5);
-            i += 1;
-        }
-    }
-
-    #[test]
-    fn test_hash_blake3() {
-        let test = b"Calculating the BLAKE3 Hash of this text".to_vec();
-        let test2 = b"Calculating the BLAKE3 Hash of this different text".to_vec();
-        let hash1 = get_blake3_hash(test.clone()).unwrap();
-        let hash2 = get_blake3_hash(test).unwrap();
-        let hash3 = get_blake3_hash(test2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_blake3_big() {
-        //testing large data input with Blake3 hashing function using rayon implementation
-        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let hash1 = get_blake3_hash(random_bytes.clone()).unwrap();
-        let hash2 = get_blake3_hash(random_bytes).unwrap();
-        let hash3 = get_blake3_hash(random_bytes2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_sha2_256() {
-        let test = b"Calculating the Hash of this text".to_vec();
-        let test2 = b"Calculating the Hash of this different text".to_vec();
-        let hash1 = get_sha2_256_hash(test.clone()).unwrap();
-        let hash2 = get_sha2_256_hash(test).unwrap();
-        let hash3 = get_sha2_256_hash(test2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_sha2_512() {
-        let test = b"Calculating the Hash of this text".to_vec();
-        let test2 = b"Calculating the Hash of this different text".to_vec();
-        let hash1 = get_sha2_512_hash(test.clone()).unwrap();
-        let hash2 = get_sha2_512_hash(test).unwrap();
-        let hash3 = get_sha2_512_hash(test2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_sha3_256() {
-        let test = b"Calculating the Hash of this text".to_vec();
-        let test2 = b"Calculating the Hash of this different text".to_vec();
-        let hash1 = get_sha3_256_hash(test.clone()).unwrap();
-        let hash2 = get_sha3_256_hash(test).unwrap();
-        let hash3 = get_sha3_256_hash(test2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_sha3_512() {
-        let test = b"Calculating the Hash of this text".to_vec();
-        let test2 = b"Calculating the Hash of this different text".to_vec();
-        let hash1 = get_sha3_512_hash(test.clone()).unwrap();
-        let hash2 = get_sha3_512_hash(test).unwrap();
-        let hash3 = get_sha3_512_hash(test2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_hash_sha_big() {
-        //testing large data input with SHA2 and SHA3 hashing functions
-        //testing SHA2-256
-        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let hash1 = get_sha2_256_hash(random_bytes.clone()).unwrap();
-        let hash2 = get_sha2_256_hash(random_bytes).unwrap();
-        let hash3 = get_sha2_256_hash(random_bytes2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-        //testing SHA2-512
-        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let hash1 = get_sha2_512_hash(random_bytes.clone()).unwrap();
-        let hash2 = get_sha2_512_hash(random_bytes).unwrap();
-        let hash3 = get_sha2_512_hash(random_bytes2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-        //testing SHA3-256
-        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let hash1 = get_sha3_256_hash(random_bytes.clone()).unwrap();
-        let hash2 = get_sha3_256_hash(random_bytes).unwrap();
-        let hash3 = get_sha3_256_hash(random_bytes2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-        //testing SHA3-512
-        let random_bytes: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let random_bytes2: Vec<u8> = (0..128000).map(|_| rand::random::<u8>()).collect();
-        let hash1 = get_sha3_512_hash(random_bytes.clone()).unwrap();
-        let hash2 = get_sha3_512_hash(random_bytes).unwrap();
-        let hash3 = get_sha3_512_hash(random_bytes2).unwrap();
-        assert_eq!(hash1, hash2);
-        assert_ne!(hash1, hash3);
-    }
-
-    #[test]
-    fn test_multiple_random_chacha() {
-        use rand::distr::Uniform;
-        let range = Uniform::new(0, 255).unwrap();
-        let mut i = 1;
-        while i < 1000 {
-            let mut rng = rng();
-            let key: String = iter::repeat(())
-                .map(|()| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(32)
-                .collect();
-
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
-            let ciphertext = encrypt_chacha(content.clone(), &key).unwrap();
-            assert_ne!(&ciphertext, &content);
-            let plaintext = decrypt_chacha(ciphertext, &key).unwrap();
-            assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
-
-            i += 1;
-        }
-    }
-
-    #[test]
-    fn test_multiple_random_aes() {
-        use rand::distr::Uniform;
-        let range = Uniform::new(0, 255).unwrap();
-        let mut i = 1;
-        while i < 1000 {
-            let mut rng = rng();
-            let key: String = iter::repeat(())
-                .map(|()| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(32)
-                .collect();
-
-            let content: Vec<u8> = (0..100).map(|_| rng.sample(range)).collect();
-            let ciphertext = encrypt_aes(content.clone(), &key).unwrap();
-            assert_ne!(&ciphertext, &content);
-            let plaintext = decrypt_aes(ciphertext, &key).unwrap();
-            assert_eq!(format!("{:?}", content), format!("{:?}", plaintext));
-
-            i += 1;
-        }
-    }
-    #[test]
-    fn test_example() {
-        let text = b"This a test"; //Text to encrypt
-        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-        let text_vec = text.to_vec(); //Convert text to Vec<u8>
-        let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-        //let ciphertext = encrypt_chacha(read_file(example.file).unwrap(), key).unwrap(); //read a file as Vec<u8> and then encrypt
-        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
-        let plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
-        assert_eq!(format!("{:?}", text), format!("{:?}", plaintext)); //Check that text == plaintext
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_chacha_wrong_key_panic() {
-        let text = b"This a another test"; //Text to encrypt
-        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-        let text_vec = text.to_vec(); //Convert text to Vec<u8>
-        let ciphertext = encrypt_chacha(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-
-        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
-        let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
-        let _plaintext = decrypt_chacha(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_aes_wrong_key_panic() {
-        let text = b"This a another test"; //Text to encrypt
-        let key: &str = "an example very very secret key."; //Key will normally be chosen from keymap and provided to the encrypt_chacha() function
-        let text_vec = text.to_vec(); //Convert text to Vec<u8>
-        let ciphertext = encrypt_aes(text_vec, key).unwrap(); //encrypt vec<u8>, returns result(Vec<u8>)
-        assert_ne!(&ciphertext, &text); //Check that plaintext != ciphertext
-        let key: &str = "an example very very secret key!"; //The ! should result in decryption panic
-        let _plaintext = decrypt_aes(ciphertext, key).unwrap(); //Decrypt ciphertext to plaintext
-    }
-
-    #[test]
-    fn test_example_hash() {
-        let test = b"Calculating the BLAKE3 Hash of this text";
-        let test_vec = test.to_vec(); //Convert text to Vec<u8>
-        let hash1 = get_blake3_hash(test_vec.clone()).unwrap();
-        let hash2 = get_blake3_hash(test_vec).unwrap();
-        assert_eq!(hash1, hash2); //Make sure hash1 == hash2
-        let test2 = b"Calculating the BLAKE3 Hash of this text."; //"." added at the end
-        let test2_vec = test2.to_vec();
-        let hash3 = get_blake3_hash(test2_vec).unwrap();
-        //check that the added "." changes the hash
-        assert_ne!(hash1, hash3);
+        let ct = encrypt_bytes(b"abc", pw.clone(), &opts).unwrap();
+        assert!(super::looks_armored(&ct));
+        let pt = decrypt_bytes(&ct, pw).unwrap();
+        assert_eq!(pt, b"abc");
     }
 }
