@@ -251,7 +251,7 @@ All fallible APIs return `Result<_, EncFileError>`. Common cases:
 ## Tips
 
 - Use *streaming* for large files to keep memory predictable.
-- Consider `--armor` when moving ciphertexts through systems that mangle binary.
+- Consider `--armor` when moving ciphertexts through systems that mangle binaries.
 - For CLI automation, prefer `--password-file` over interactive prompts.
 
 ---
@@ -265,7 +265,7 @@ Licensed under either of
 
 at your option.
 
-Any contribution intentionally submitted for inclusion in the work shall be
+Any contribution intentionally submitted for inclusion in this work shall be
 dual licensed as above, without any additional terms or conditions.
 
 ---
