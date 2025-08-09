@@ -291,5 +291,11 @@ The compiled CLI binary is named `enc-file` (kebab-case), which is the name you 
 enc-file hash --file test.txt
 ```
 
-This naming separation is intentional and follows common Rust conventions.
+This naming separation is intentional and follows common conventions.
+
+---
+
+## Feedback & Issues
+
+Feedback, bug reports, and pull requests are highly appreciated! Open an [Issue](https://github.com/ArdentEmpiricist/enc_file/issues) or [start a discussion](https://github.com/ArdentEmpiricist/enc_file/discussions).
 
