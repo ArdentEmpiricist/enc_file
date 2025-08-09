@@ -2,8 +2,49 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/main/assets/logo.png"
 )]
-//! Command-line interface for `enc_file`.
-//! Focuses on UX: subcommands, secure password input, streaming flags.
+//! # enc_file — password-based authenticated encryption for files.
+//!
+//! `enc_file` is a Rust library for encrypting, decrypting, and hashing files or byte arrays.
+//! It supports modern AEAD ciphers (XChaCha20-Poly1305, AES-256-GCM-SIV) with Argon2id key derivation.
+//!
+//! ## Features
+//! - **File and byte array encryption/decryption**
+//! - **Streaming encryption** for large files (constant memory usage)
+//! - **Multiple AEAD algorithms**: XChaCha20-Poly1305, AES-256-GCM-SIV
+//! - **Password-based key derivation** using Argon2id
+//! - **Key map management** for named symmetric keys
+//! - **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32
+//! - **ASCII armor** for encrypted data (Base64 encoding)
+//!
+//! ## Example: Encrypt and decrypt a byte array
+//! ```no_run
+//! use enc_file::{encrypt_bytes, decrypt_bytes, EncryptOptions, AeadAlg};
+//! use secrecy::SecretString;
+//!
+//! let password = SecretString::new("mypassword".into());
+//! let opts = EncryptOptions {
+//!     alg: AeadAlg::XChaCha20Poly1305,
+//!     ..Default::default()
+//! };
+//!
+//! let ciphertext = encrypt_bytes(b"Hello, world!", password.clone(), &opts).unwrap();
+//! let plaintext = decrypt_bytes(&ciphertext, password).unwrap();
+//! assert_eq!(plaintext, b"Hello, world!");
+//! ```
+//!
+//! ## Example: Hash a file
+//! ```no_run
+//! use enc_file::{hash_file, HashAlg};
+//! use std::path::Path;
+//!
+//! let digest = hash_file(Path::new("myfile.txt"), HashAlg::Blake3).unwrap();
+//! println!("Hash: {}", enc_file::to_hex_lower(&digest));
+//! ```
+//!
+//! See function-level documentation for more details.
+//!
+//! Safety notes
+//! - The crate is not audited or reviewed! Protects data at rest. Does not defend against compromised hosts/side channels.
 
 use std::fs;
 use std::io::Read;
