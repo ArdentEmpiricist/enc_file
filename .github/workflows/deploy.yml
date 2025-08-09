@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           # Replace with the name of your binary
-          binary_name="enc_file"
+          binary_name="enc-file"
 
           dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
           mkdir "$dirname"
