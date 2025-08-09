@@ -300,10 +300,69 @@ fn nonce_len_for(alg: AeadAlg) -> usize {
 }
 
 // ---------- Public API: in-memory one-shot ----------
-
-/// Encrypt a whole buffer and return the full file bytes (header + ciphertext).
+/// Encrypt a byte slice using an AEAD cipher with a password-derived key.
 ///
-/// When `opts.armor == true`, returns ASCII-armored data (Base64) instead of binary.
+/// This is the simplest way to encrypt in-memory data. A random salt and nonce are
+/// generated and encoded into the output so the same inputs never produce the same ciphertext.
+///
+///
+/// ### Options
+/// All functions share a common [`EncryptOptions`] structure. Some fields are only relevant for files/streaming; others are ignored for in-memory encryption.
+///
+/// - `alg: AeadAlg` — AEAD cipher. Supported: `XChaCha20Poly1305` (default), `Aes256GcmSiv`.
+/// - `kdf: KdfAlg` — Password KDF. Currently `Argon2id` (default).
+/// - `kdf_params: KdfParams` — Argon2id tuning:
+///   - `t_cost` (passes/iterations)
+///   - `mem_kib` (memory in KiB)
+///   - `parallelism` (lanes/threads)
+/// - `armor: bool` — Wrap output in ASCII armor (Base64) suitable for copy/paste.
+/// - `force: bool` — Overwrite existing output files (file APIs only; ignored by byte APIs).
+/// - `stream: bool` — Use streaming/chunked framing for constant memory (file APIs only). `encrypt_file` can enable it heuristically; `encrypt_file_streaming` always streams.
+/// - `chunk_size: usize` — Chunk size in bytes (streaming only). Larger chunks improve throughput but increase peak I/O.
+///
+///
+/// **Ignored fields for this function:** `force`, `stream`, `chunk_size` (these apply to file/streaming only).
+///
+/// ### Parameters
+/// - `plaintext`: Bytes to encrypt.
+/// - `password`: Passphrase wrapped in `secrecy::SecretString`.
+/// - `opts`: Tuning options (algorithm, KDF, ASCII armor).
+///
+/// ### Returns
+/// A binary ciphertext (or ASCII-armored Base64 if `opts.armor` is enabled)
+/// that contains a self-describing header with KDF and cipher info.
+///
+/// ### Errors
+/// Returns `EncFileError` if key derivation or encryption fails.
+///
+/// ### Security
+/// - Uses Argon2id for password hashing to resist GPU attacks.
+/// - Uses an AEAD (e.g., XChaCha20-Poly1305 or AES-256-GCM-SIV) for confidentiality *and* integrity.
+/// - A unique random salt and nonce are generated per call.
+///
+/// ### Example (with common options)
+/// ```no_run
+/// use enc_file::{{encrypt_bytes, decrypt_bytes, EncryptOptions, AeadAlg, KdfAlg, KdfParams}};
+/// use secrecy::SecretString;
+///
+/// let opts = EncryptOptions {{
+///     alg: AeadAlg::XChaCha20Poly1305, // or Aes256GcmSiv
+///     armor: true,                      // ASCII-armor for copy/paste
+///     kdf: KdfAlg::Argon2id,
+///     kdf_params: KdfParams {{
+///         t_cost: 3,              // iterations
+///         mem_kib: 64 * 1024,     // 64 MiB memory
+///         parallelism: 1,         // threads
+///     }},
+///     ..Default::default()
+/// }};
+///
+/// let pw = SecretString::new("correct horse battery staple".into());
+///
+/// let ct = encrypt_bytes(b"top secret", pw.clone(), &opts).unwrap();
+/// let pt = decrypt_bytes(&ct, pw).unwrap();
+/// assert_eq!(pt, b"top secret");
+/// ```
 pub fn encrypt_bytes(
     plaintext: &[u8],
     password: SecretString,
@@ -344,7 +403,60 @@ pub fn encrypt_bytes(
     }
 }
 
-/// Decrypt full file bytes into plaintext.
+/// Decrypt a byte slice that was produced by [`encrypt_bytes`].
+///
+/// The function parses the self-describing header, derives the key using the embedded
+/// Argon2id parameters, and verifies the AEAD tag before returning the plaintext.
+///
+///
+/// ### Options
+/// All functions share a common [`EncryptOptions`] structure. Some fields are only relevant for files/streaming; others are ignored for in-memory encryption.
+///
+/// - `alg: AeadAlg` — AEAD cipher. Supported: `XChaCha20Poly1305` (default), `Aes256GcmSiv`.
+/// - `kdf: KdfAlg` — Password KDF. Currently `Argon2id` (default).
+/// - `kdf_params: KdfParams` — Argon2id tuning:
+///   - `t_cost` (passes/iterations)
+///   - `mem_kib` (memory in KiB)
+///   - `parallelism` (lanes/threads)
+/// - `armor: bool` — Wrap output in ASCII armor (Base64) suitable for copy/paste.
+/// - `force: bool` — Overwrite existing output files (file APIs only; ignored by byte APIs).
+/// - `stream: bool` — Use streaming/chunked framing for constant memory (file APIs only). `encrypt_file` can enable it heuristically; `encrypt_file_streaming` always streams.
+/// - `chunk_size: usize` — Chunk size in bytes (streaming only). Larger chunks improve throughput but increase peak I/O.
+///
+///
+/// **Ignored fields for this function:** all `EncryptOptions` fields are ignored by `decrypt_bytes` —
+/// decryption uses the header embedded in `input`.
+///
+/// ### Parameters
+/// - `input`: The ciphertext previously returned by `encrypt_bytes` (binary or ASCII-armored).
+/// - `password`: Passphrase wrapped in `secrecy::SecretString`.
+///
+/// ### Returns
+/// A `Vec<u8>` with the decrypted plaintext.
+///
+/// ### Errors
+/// - `EncFileError::Header` if the header is malformed or uses an unsupported version/algorithm.
+/// - `EncFileError::Crypto` if authentication fails (wrong password or tampered ciphertext).
+///
+/// ### Example (paired with encrypt options)
+/// ```no_run
+/// use enc_file::{{encrypt_bytes, decrypt_bytes, EncryptOptions, AeadAlg, KdfAlg, KdfParams}};
+/// use secrecy::SecretString;
+///
+/// let pw = SecretString::new("pw".into());
+///
+/// let opts = EncryptOptions {{
+///     alg: AeadAlg::Aes256GcmSiv,
+///     armor: false,
+///     kdf: KdfAlg::Argon2id,
+///     kdf_params: KdfParams {{ t_cost: 3, mem_kib: 64 * 1024, parallelism: 1 }},
+///     ..Default::default()
+/// }};
+///
+/// let ct = encrypt_bytes(b"data", pw.clone(), &opts).unwrap();
+/// let pt = decrypt_bytes(&ct, pw).unwrap();
+/// assert_eq!(pt, b"data");
+/// ```
 pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, EncFileError> {
     if looks_armored(input) {
         let bin = dearmor_decode(input)?;
@@ -400,8 +512,66 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
 
 // ---------- Public API: files (one-shot) ----------
 
-/// Encrypt a file to disk. If `output` is `None`, appends ".enc".
-/// Use `opts.stream = true` to enable streaming mode (see `encrypt_file_streaming`).
+/// Encrypt a file on disk using a password-derived key.
+///
+/// This reads the input file, encrypts it (optionally in streaming mode for large files),
+/// and writes the output. The output contains a self-describing header followed by the ciphertext
+/// (or ASCII armor if requested).
+///
+///
+/// ### Options
+/// All functions share a common [`EncryptOptions`] structure. Some fields are only relevant for files/streaming; others are ignored for in-memory encryption.
+///
+/// - `alg: AeadAlg` — AEAD cipher. Supported: `XChaCha20Poly1305` (default), `Aes256GcmSiv`.
+/// - `kdf: KdfAlg` — Password KDF. Currently `Argon2id` (default).
+/// - `kdf_params: KdfParams` — Argon2id tuning:
+///   - `t_cost` (passes/iterations)
+///   - `mem_kib` (memory in KiB)
+///   - `parallelism` (lanes/threads)
+/// - `armor: bool` — Wrap output in ASCII armor (Base64) suitable for copy/paste.
+/// - `force: bool` — Overwrite existing output files (file APIs only; ignored by byte APIs).
+/// - `stream: bool` — Use streaming/chunked framing for constant memory (file APIs only). `encrypt_file` can enable it heuristically; `encrypt_file_streaming` always streams.
+/// - `chunk_size: usize` — Chunk size in bytes (streaming only). Larger chunks improve throughput but increase peak I/O.
+///
+///
+/// ### Parameters
+/// - `input`: Path to the source file.
+/// - `output`: Optional path to write the ciphertext. If `None`, a `.enc` (or `.asc` for armor) suffix is used.
+/// - `password`: Passphrase wrapped in `secrecy::SecretString`.
+/// - `opts`: Encryption options (algorithm, KDF, ASCII armor, streaming thresholds, etc.).
+///
+/// ### Returns
+/// The final output path as `PathBuf`.
+///
+/// ### Errors
+/// Returns `EncFileError` variants on I/O, header, or cryptographic failures.
+///
+/// ### Example (with common file options)
+/// ```no_run
+/// use enc_file::{{encrypt_file, decrypt_file, EncryptOptions, AeadAlg, KdfAlg, KdfParams}};
+/// use secrecy::SecretString;
+/// use std::path::PathBuf;
+///
+/// let input = PathBuf::from("/tmp/example.txt");
+/// std::fs::write(&input, b"file content").unwrap();
+///
+/// let opts = EncryptOptions {{
+///     alg: AeadAlg::Aes256GcmSiv, // choose AES-GCM-SIV
+///     armor: false,               // binary output
+///     force: true,                // overwrite output if it exists
+///     stream: false,              // buffer whole file
+///     kdf: KdfAlg::Argon2id,
+///     kdf_params: KdfParams {{ t_cost: 3, mem_kib: 64 * 1024, parallelism: 1 }},
+///     ..Default::default()
+/// }};
+///
+/// let pw = SecretString::new("s3cr3t".into());
+/// let out = encrypt_file(&input, None, pw.clone(), opts).unwrap();
+///
+/// let recovered_path = decrypt_file(&out, None, pw).unwrap();
+/// let recovered = std::fs::read(recovered_path).unwrap();
+/// assert_eq!(recovered, b"file content");
+/// ```
 pub fn encrypt_file(
     input: &Path,
     output: Option<&Path>,
@@ -424,7 +594,70 @@ pub fn encrypt_file(
     Ok(out_path)
 }
 
-/// Decrypt a file from disk. If `output` is `None`, strips ".enc" or uses ".dec".
+/// Decrypt a file on disk that was produced by [`encrypt_file`] or [`encrypt_file_streaming`].
+///
+/// The function reads the header to determine the algorithm and KDF parameters,
+/// derives the key from the provided password, validates the AEAD tag(s), and writes
+/// the plaintext output.
+///
+///
+/// ### Options
+/// All functions share a common [`EncryptOptions`] structure. Some fields are only relevant for files/streaming; others are ignored for in-memory encryption.
+///
+/// - `alg: AeadAlg` — AEAD cipher. Supported: `XChaCha20Poly1305` (default), `Aes256GcmSiv`.
+/// - `kdf: KdfAlg` — Password KDF. Currently `Argon2id` (default).
+/// - `kdf_params: KdfParams` — Argon2id tuning:
+///   - `t_cost` (passes/iterations)
+///   - `mem_kib` (memory in KiB)
+///   - `parallelism` (lanes/threads)
+/// - `armor: bool` — Wrap output in ASCII armor (Base64) suitable for copy/paste.
+/// - `force: bool` — Overwrite existing output files (file APIs only; ignored by byte APIs).
+/// - `stream: bool` — Use streaming/chunked framing for constant memory (file APIs only). `encrypt_file` can enable it heuristically; `encrypt_file_streaming` always streams.
+/// - `chunk_size: usize` — Chunk size in bytes (streaming only). Larger chunks improve throughput but increase peak I/O.
+///
+///
+/// **Note:** Options are mostly ignored during decryption; the header drives KDF and cipher selection.
+/// `armor` affects parsing; `force` controls overwriting when choosing output paths. (This function
+/// does not take an `EncryptOptions` argument; decryption behavior is derived from the file header.)
+///
+/// ### Parameters
+/// - `input`: Path to the ciphertext file (binary or ASCII-armored).
+/// - `output`: Optional path to write the plaintext. If `None`, the original extension is restored when possible.
+/// - `password`: Passphrase wrapped in `secrecy::SecretString`.
+///
+/// ### Returns
+/// The final output path as `PathBuf`.
+///
+/// ### Errors
+/// - `EncFileError::Header` if the header is malformed or unsupported.
+/// - `EncFileError::Crypto` if authentication fails (wrong password or tampering).
+/// - I/O-related errors on read/write failures.
+///
+/// ### Example (typical decryption flow)
+/// ```no_run
+/// use enc_file::{{encrypt_file_streaming, decrypt_file, EncryptOptions, AeadAlg, KdfAlg, KdfParams}};
+/// use secrecy::SecretString;
+/// use std::path::PathBuf;
+///
+/// let input = PathBuf::from("/tmp/notes.txt");
+/// std::fs::write(&input, b"hello").unwrap();
+///
+/// let opts = EncryptOptions {{
+///     alg: AeadAlg::Aes256GcmSiv,
+///     stream: true,
+///     chunk_size: 2 * 1024 * 1024, // 2 MiB
+///     kdf: KdfAlg::Argon2id,
+///     kdf_params: KdfParams {{ t_cost: 3, mem_kib: 64 * 1024, parallelism: 1 }},
+///     ..Default::default()
+/// }};
+///
+/// let pw = SecretString::new("pw".into());
+/// let enc_path = encrypt_file_streaming(&input, None, pw.clone(), opts).unwrap();
+///
+/// // Decrypt (no options required)
+/// let dec_path = decrypt_file(&enc_path, None, pw).unwrap();
+/// assert_eq!(std::fs::read(dec_path).unwrap(), b"hello");
+/// ```
 pub fn decrypt_file(
     input: &Path,
     output: Option<&Path>,
