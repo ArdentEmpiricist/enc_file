@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 
-use enc_file::{decrypt_file, encrypt_file, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_file, encrypt_file};
 use secrecy::SecretString;
 use tempfile::tempdir;
 
@@ -121,7 +121,7 @@ fn output_overwrite_behavior() {
 
 #[test]
 fn keymap_save_load_roundtrip_and_streaming_error() {
-    use enc_file::{load_keymap, save_keymap, EncFileError, EncryptOptions, KeyMap};
+    use enc_file::{EncFileError, EncryptOptions, KeyMap, load_keymap, save_keymap};
     use secrecy::SecretString;
     use tempfile::tempdir;
 

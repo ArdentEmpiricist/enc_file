@@ -12,7 +12,7 @@ use std::fs;
 use std::io::{Read, Write};
 use tempfile::tempdir;
 
-use enc_file::{decrypt_bytes, decrypt_file, encrypt_bytes, encrypt_file, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_bytes, decrypt_file, encrypt_bytes, encrypt_file};
 
 const KIB: usize = 1024;
 const MIB: usize = 1024 * 1024;

@@ -1,6 +1,6 @@
 //! Edge-case tests for both algorithms (empty, tiny, boundary, armor toggle).
 
-use enc_file::{decrypt_bytes, encrypt_bytes, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_bytes, encrypt_bytes};
 use secrecy::SecretString;
 
 const KIB: usize = 1024;
