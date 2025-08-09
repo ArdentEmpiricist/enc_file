@@ -3,7 +3,7 @@ name = "enc_file"
 version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Password-based file encryption with a versioned header, AEAD, Argon2id KDF, and streaming mode. Library + CLI."
+description = "Password-based file encryption tool with a versioned header, AEAD, Argon2id KDF, and streaming mode. Library + CLI."
 repository = "https://crates.io/crates/enc_file"
 
 [lib]
