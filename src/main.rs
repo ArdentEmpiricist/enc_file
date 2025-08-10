@@ -48,7 +48,7 @@
 
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -105,18 +105,27 @@ struct EncArgs {
     #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
     chunk_size: usize,
     /// Read password from file instead of interactive prompt
-    #[arg(long = "password-file")]
+    #[arg(short = 'p', long = "password-file")]
     password_file: Option<PathBuf>,
 }
 
-#[derive(Args, Debug)]
+#[derive(clap::Args, Debug)]
 struct DecArgs {
-    #[arg(long = "in")]
-    input: PathBuf,
-    #[arg(long = "out")]
-    output: Option<PathBuf>,
-    #[arg(long = "password-file")]
-    password_file: Option<PathBuf>,
+    /// Input file (encrypted)
+    #[arg(short = 'i', long = "in")]
+    input: std::path::PathBuf,
+
+    /// Output file (plaintext). If omitted, ".enc" is stripped or ".dec" is appended.
+    #[arg(short = 'o', long = "out")]
+    output: Option<std::path::PathBuf>,
+
+    /// Optional path to a file containing the password (trailing newline will be trimmed).
+    #[arg(short = 'p', long = "password-file")]
+    password_file: Option<std::path::PathBuf>,
+
+    /// Overwrite the output file if it already exists.
+    #[arg(short = 'f', long = "force")]
+    force: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -277,8 +286,29 @@ fn cmd_enc(a: EncArgs) -> Result<()> {
 
 fn cmd_dec(a: DecArgs) -> Result<()> {
     let pw = read_password(&a.password_file, "Password: ")?;
+
+    // Resolve the output path the library will use.
+    let target = if let Some(ref out) = a.output {
+        out.clone()
+    } else {
+        compute_default_dec_out(&a.input)
+    };
+
+    // Enforce --force at the CLI layer (the library will still refuse if the file exists).
+    if target.exists() {
+        if a.force {
+            // Best-effort removal. If a racy recreate happens, the library will still error safely.
+            let _ = std::fs::remove_file(&target);
+        } else {
+            // Match the library’s wording so tests stay stable.
+            anyhow::bail!("output exists; use --force to overwrite");
+        }
+    }
+
+    // Call the library; pass `a.output.as_deref()` so the lib can use the explicit out if present.
     let out =
         decrypt_file(&a.input, a.output.as_deref(), pw).with_context(|| "decryption failed")?;
+
     eprintln!("Wrote {}", out.display());
     Ok(())
 }
@@ -350,6 +380,20 @@ fn cmd_hash(args: HashArgs) -> anyhow::Result<()> {
         println!("{}", enc_file::to_hex_lower(&digest));
     }
     Ok(())
+}
+
+/// Compute default plaintext output path used by the library when `--out` is omitted:
+/// - If input ends with ".enc" (as a suffix), strip it.
+/// - Otherwise, append ".dec".
+fn compute_default_dec_out(input: &Path) -> PathBuf {
+    let s = input.to_string_lossy();
+    if let Some(stripped) = s.strip_suffix(".enc") {
+        PathBuf::from(stripped)
+    } else {
+        let mut p = input.to_path_buf();
+        p.set_extension("dec");
+        p
+    }
 }
 
 fn to_hex(bytes: &[u8]) -> String {

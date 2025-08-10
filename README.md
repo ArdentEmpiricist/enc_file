@@ -84,9 +84,9 @@ Options of interest:
 - `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
 - `--stream` stream mode for large inputs
 - `--chunk-size <bytes>` chunk size in streaming mode (default from library)
-- `--armor` ASCII-armor output
+- `--armor` ASCII-armor output, attention: armored streaming is not available
 - `--force` overwrite output if it exists
-- `--password-file <PATH>` read password from a file (if your CLI wiring includes it)
+- `--password-file / `-p` <PATH>` read password from a file
 
 ### Decrypt
 
@@ -167,6 +167,8 @@ let opts = EncryptOptions {
 let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 # Ok::<(), enc_file::EncFileError>(())
 ```
+> **Chunk size:** In streaming mode, `chunk_size = 0` uses the default (1 MiB). The maximum allowed is `u32::MAX - 16` bytes, because each frame’s length is a 32-bit count of ciphertext bytes and the AEAD adds a 16-byte tag.
+
 
 ### Hash helpers
 

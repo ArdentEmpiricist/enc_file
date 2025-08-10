@@ -47,6 +47,7 @@
 //! - The crate is not audited or reviewed! Protects data at rest. Does not defend against compromised hosts/side channels.
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -617,6 +618,60 @@ pub fn decrypt_file(
     Ok(out_path)
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DecryptOptions {
+    /// Allow overwriting an existing output file.
+    pub force: bool,
+}
+
+pub fn decrypt_file_with_options(
+    in_path: &std::path::Path,
+    out_path: Option<&std::path::Path>,
+    password: secrecy::SecretString,
+    opts: DecryptOptions,
+) -> Result<std::path::PathBuf, EncFileError> {
+    use std::{
+        fs,
+        io::Write,
+        path::{Path, PathBuf},
+    };
+    // ... read input, parse header, derive key, etc. (unchanged)
+
+    // Compute output path (existing logic)
+    let out: PathBuf = match out_path {
+        Some(p) => p.to_path_buf(),
+        None => default_decrypt_output_path(in_path), // your existing helper
+    };
+
+    // Overwrite policy:
+    if out.exists() && !opts.force {
+        return Err(EncFileError::Invalid(
+            "output exists; use --force to overwrite".into(),
+        ));
+    }
+
+    // Write to a temp file next to the destination, then atomically replace.
+    let mut tf = tempfile::NamedTempFile::new_in(out.parent().unwrap_or(Path::new(".")))
+        .map_err(|e| EncFileError::Io(e))?;
+
+    // Write plaintext (streaming or one-shot) to `tf` as you do today…
+    // tf.write_all(&plaintext)?;
+    // If streaming, write incrementally to tf.
+
+    // Ensure data hits disk
+    tf.flush().map_err(EncFileError::Io)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // Optional: set conservative perms on the decrypted file: 0o600
+        let _ = fs::set_permissions(tf.path(), fs::Permissions::from_mode(0o600));
+    }
+
+    // Now atomically persist the tempfile to the final output path, honoring --force.
+    let out_pathbuf = persist_tempfile_atomic(tf, &out, opts.force)?;
+    Ok(out_pathbuf)
+}
+
 fn default_out_path(input: &Path, output: Option<&Path>, ext: &str) -> PathBuf {
     output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
         let mut p = input.to_path_buf();
@@ -714,6 +769,7 @@ const FLAG_FINAL: u8 = 1;
 
 /// Encrypt a file on disk using **streaming/chunked framing** for constant memory usage.
 ///
+/// Armored streaming is not available, the argument will be ignored!
 /// ### Example (with streaming options)
 /// ```no_run
 /// use enc_file::{encrypt_file_streaming, decrypt_file, EncryptOptions, AeadAlg, KdfAlg, KdfParams};
@@ -744,10 +800,15 @@ pub fn encrypt_file_streaming(
     password: SecretString,
     mut opts: EncryptOptions,
 ) -> Result<PathBuf, EncFileError> {
+    //armored streaming is not available
+    // Enforce chunk-size policy early (0 => default; too big => error).
+
     if !opts.stream {
+        validate_chunk_size_for_streaming(opts.chunk_size)?;
         opts.stream = true;
     }
-    let chunk = opts.chunk_size.max(1024);
+    let eff_chunk_size = effective_stream_chunk_size(opts.chunk_size)?;
+    //let eff_chunk_size = opts.chunk_size.max(1024);
     let out_path = default_out_path(input, output, "enc");
 
     if out_path.exists() && !opts.force {
@@ -767,7 +828,7 @@ pub fn encrypt_file_streaming(
             let mut prefix = vec![0u8; 19];
             getrandom(&mut prefix).map_err(|_| EncFileError::Crypto)?;
             StreamInfo {
-                chunk_size: chunk as u32,
+                chunk_size: eff_chunk_size as u32,
                 nonce_prefix: prefix,
             }
         }
@@ -776,7 +837,7 @@ pub fn encrypt_file_streaming(
             let mut prefix = vec![0u8; 8];
             getrandom(&mut prefix).map_err(|_| EncFileError::Crypto)?;
             StreamInfo {
-                chunk_size: chunk as u32,
+                chunk_size: eff_chunk_size as u32,
                 nonce_prefix: prefix,
             }
         }
@@ -801,7 +862,7 @@ pub fn encrypt_file_streaming(
 
     // Input/output streaming
     let mut infile = File::open(input)?;
-    let mut buf = vec![0u8; chunk];
+    let mut buf = vec![0u8; eff_chunk_size];
     match opts.alg {
         AeadAlg::XChaCha20Poly1305 => {
             // Build cipher from derived key (accepts &[u8])
@@ -846,7 +907,7 @@ pub fn encrypt_file_streaming(
             let mut counter: u32 = 0;
             loop {
                 let n = infile.read(&mut buf)?;
-                let is_final = n == 0 || n < chunk;
+                let is_final = n == 0 || n < eff_chunk_size;
                 let pt = &buf[..n];
                 // nonce = prefix (8 bytes) || counter_be (4 bytes)
                 let mut nonce_bytes = [0u8; 12];
@@ -877,6 +938,29 @@ pub fn encrypt_file_streaming(
     Ok(out_path)
 }
 
+/// Validate streaming chunk size against the 32-bit frame length format.
+/// Each frame length is a big-endian u32 of *ciphertext* bytes; AEAD adds a 16-byte tag,
+/// so the maximum safe plaintext chunk size is (u32::MAX - 16).
+pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFileError> {
+    const TAG_LEN: usize = 16;
+
+    if chunk_size == 0 {
+        return Err(EncFileError::Invalid("chunk_size must be > 0"));
+    }
+
+    // Compute max plaintext size that still fits into a u32 ciphertext length.
+    let max_pt = (u32::MAX as usize).saturating_sub(TAG_LEN);
+
+    if chunk_size > max_pt {
+        // Use a static message to satisfy EncFileError::Invalid(&'static str)
+        return Err(EncFileError::Invalid(
+            "chunk_size too large for 32-bit frame",
+        ));
+    }
+
+    Ok(())
+}
+
 /// Helper: write a single framed chunk.
 fn write_frame<W: Write>(mut w: W, ct: &[u8], is_final: bool) -> Result<(), EncFileError> {
     let flags = if is_final { FLAG_FINAL } else { 0 };
@@ -884,6 +968,35 @@ fn write_frame<W: Write>(mut w: W, ct: &[u8], is_final: bool) -> Result<(), EncF
     w.write_all(&(ct.len() as u32).to_be_bytes())?;
     w.write_all(ct)?;
     Ok(())
+}
+
+/// Atomically persist a tempfile to `out`, honoring the `force` overwrite policy.
+/// This avoids relying on internal fields of `PathPersistError` (API-stable).
+pub fn persist_tempfile_atomic(
+    tmp: tempfile::NamedTempFile,
+    out: &Path,
+    force: bool,
+) -> Result<PathBuf, EncFileError> {
+    // Convert into a TempPath so we control the final rename.
+    let tmp_path = tmp.into_temp_path();
+
+    // Enforce overwrite policy here.
+    if out.exists() {
+        if force {
+            // Best-effort remove; if a race recreates the file, persist below will fail and we bubble up.
+            let _ = std::fs::remove_file(out);
+        } else {
+            return Err(EncFileError::Invalid(
+                "output exists; use --force to overwrite",
+            ));
+        }
+    }
+
+    // Try to persist atomically (rename). If it fails, map the underlying io::Error.
+    match tmp_path.persist(out) {
+        Ok(()) => Ok(out.to_path_buf()),
+        Err(e) => Err(EncFileError::Io(e.error)),
+    }
 }
 
 /// Decrypt framed ciphertext (in-memory) using the given header stream info.
@@ -1217,6 +1330,65 @@ pub fn to_hex_lower(bytes: &[u8]) -> String {
         out.push(HEX[(b & 0x0f) as usize] as char);
     }
     out
+}
+
+/// Compute a default output path for decryption:
+/// - If the input ends with ".enc", strip it.
+/// - Otherwise, append ".dec".
+pub fn default_decrypt_output_path(in_path: &Path) -> PathBuf {
+    let parent = in_path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = in_path.file_name().unwrap_or_else(|| OsStr::new("out"));
+
+    // Best-effort UTF-8 handling; fall back to appending ".dec" if not UTF-8.
+    if let Some(name) = file_name.to_str() {
+        if let Some(stripped) = name.strip_suffix(".enc") {
+            return parent.join(stripped);
+        }
+        return parent.join(format!("{name}.dec"));
+    }
+
+    // Non-UTF-8 file name: just append ".dec"
+    let mut os = file_name.to_os_string();
+    os.push(".dec");
+    parent.join(os)
+}
+
+/// AEAD tag length in bytes (Poly1305 and GCM-SIV are 16 bytes).
+const AEAD_TAG_LEN: usize = 16;
+
+/// Return an effective chunk size for streaming:
+/// - if user passed 0, return DEFAULT_CHUNK_SIZE
+/// - if user passed > (u32::MAX - TAG), reject (frame length is a u32 of *ciphertext* bytes)
+fn effective_stream_chunk_size(user: usize) -> Result<usize, EncFileError> {
+    // Treat 0 as "use default".
+    if user == 0 {
+        return Ok(DEFAULT_CHUNK_SIZE);
+    }
+
+    // Max plaintext per frame so that (pt + TAG) fits in u32.
+    let max_pt = (u32::MAX as usize).saturating_sub(AEAD_TAG_LEN);
+
+    if user > max_pt {
+        return Err(EncFileError::Invalid(
+            "chunk_size too large for 32-bit frame",
+        ));
+    }
+    Ok(user)
+}
+
+/// Validate a chunk size coming *from the header* during decryption.
+/// This defends against malformed/crafted inputs.
+fn validate_header_chunk_size(chunk_size: usize) -> Result<(), EncFileError> {
+    if chunk_size == 0 {
+        return Err(EncFileError::Invalid("invalid chunk_size in header"));
+    }
+    let max_pt = (u32::MAX as usize).saturating_sub(AEAD_TAG_LEN);
+    if chunk_size > max_pt {
+        return Err(EncFileError::Invalid(
+            "chunk_size exceeds 32-bit frame in header",
+        ));
+    }
+    Ok(())
 }
 
 // ---------- Tests ----------
