@@ -185,6 +185,8 @@ Both the CLI and library support multiple hashing algorithms for files and byte 
 | **XXH3-128**         | `xxh3-128`, `xxh3128`                                     | 16 bytes      |
 | **CRC32**            | `crc32`                                                   | 4 bytes       |
 
+> [!CAUTION]
+> XXH3 and CRC32 are non-cryptographic! Use with care.
 
 **CLI Example**:
 ```bash
