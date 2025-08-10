@@ -96,7 +96,7 @@ struct EncArgs {
     #[arg(long)]
     armor: bool,
     /// Overwrite output if it exists
-    #[arg(long)]
+    #[arg(short = 'f', long = "force")]
     force: bool,
     /// Enable streaming mode (constant memory; recommended for very large files)
     #[arg(long)]
