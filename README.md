@@ -85,8 +85,8 @@ Options of interest:
 - `--stream` stream mode for large inputs
 - `--chunk-size <bytes>` chunk size in streaming mode (default from library)
 - `--armor` ASCII-armor output, attention: armored streaming is not available
-- `--force` overwrite output if it exists
-- `--password-file / `-p` <PATH>` read password from a file
+- `--force` / `-f` overwrite output if it exists
+- `--password-file` / `-p` <PATH>` read password from a file
 
 ### Decrypt
 
