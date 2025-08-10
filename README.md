@@ -105,7 +105,7 @@ enc-file hash README.md --alg sha256
 
 ### Key map (optional)
 
-If you use the library’s key map helpers, the CLI can provide small helpers to init/save/load (if wired). Check `enc-file key --help` for available subcommands.
+If you use the library’s key map helpers, the CLI can provide small helpers to init/save/load. Check `enc-file key --help` for available subcommands.
 
 ---
 
