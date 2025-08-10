@@ -59,8 +59,6 @@ Add to a project as a library:
 enc_file = "0.5.9"
 ```
 
-Available optional features (check Cargo.toml): `aes` for AES-256-GCM-SIV.
-
 ---
 
 ## CLI Usage
