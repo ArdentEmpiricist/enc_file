@@ -607,7 +607,7 @@ pub fn decrypt_file(
 ) -> Result<PathBuf, EncFileError> {
     let mut data = Vec::new();
     File::open(input)?.read_to_end(&mut data)?;
-    let pt = decrypt_bytes(&data, password)?;
+    let mut pt = decrypt_bytes(&data, password)?;
     let out_path = default_out_path_for_decrypt(input, output);
     if out_path.exists() {
         return Err(EncFileError::Invalid(
@@ -615,6 +615,8 @@ pub fn decrypt_file(
         ));
     }
     write_all_atomic(&out_path, &pt, false)?;
+    // Cheap hardening: wipe decrypted plaintext buffer after writing
+    pt.zeroize();
     Ok(out_path)
 }
 
@@ -635,7 +637,6 @@ pub fn decrypt_file_with_options(
         io::Write,
         path::{Path, PathBuf},
     };
-    // ... read input, parse header, derive key, etc. (unchanged)
 
     // Compute output path (existing logic)
     let out: PathBuf = match out_path {
@@ -669,6 +670,7 @@ pub fn decrypt_file_with_options(
 
     // Now atomically persist the tempfile to the final output path, honoring --force.
     let out_pathbuf = persist_tempfile_atomic(tf, &out, opts.force)?;
+
     Ok(out_pathbuf)
 }
 
@@ -890,6 +892,9 @@ pub fn encrypt_file_streaming(
                 let pt = &buf[..n];
                 let ct = enc.encrypt_next(pt).map_err(|_| EncFileError::Crypto)?;
                 write_frame(&mut tmp, &ct, false)?;
+
+                // Cheap hardening: wipe the plaintext we just processed
+                buf[..n].zeroize();
             }
 
             // Emit a final empty frame (encrypt_last consumes the encryptor)
@@ -897,6 +902,9 @@ pub fn encrypt_file_streaming(
                 .encrypt_last(&[] as &[u8])
                 .map_err(|_| EncFileError::Crypto)?;
             write_frame(&mut tmp, &ct_final, true)?;
+
+            // Wipe the whole buffer (covers any leftover bytes from the last read)
+            buf.zeroize();
         }
 
         AeadAlg::Aes256GcmSiv => {
@@ -919,10 +927,16 @@ pub fn encrypt_file_streaming(
                     .encrypt(GenericArray::from_slice(&nonce_bytes), pt)
                     .map_err(|_| EncFileError::Crypto)?;
                 write_frame(&mut tmp, &ct, is_final)?;
+
+                // Cheap hardening: wipe sensitive material used this iteration
+                buf[..n].zeroize(); // wipe plaintext we just processed
+                nonce_bytes.zeroize(); // wipe nonce bytes
+
                 if is_final {
                     break;
                 }
             }
+            buf.zeroize();
         }
     }
 

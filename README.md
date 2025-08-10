@@ -169,7 +169,6 @@ let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 ```
 > **Chunk size:** In streaming mode, `chunk_size = 0` uses the default (1 MiB). The maximum allowed is `u32::MAX - 16` bytes, because each frame’s length is a 32-bit count of ciphertext bytes and the AEAD adds a 16-byte tag.
 
-
 ### Hash helpers
 
 ### Supported Hash Algorithms
