@@ -138,7 +138,7 @@ use std::path::Path;
 
 let pw = SecretString::new("pw".into());
 let opts = EncryptOptions {
-    alg: AeadAlg::XChaCha20Poly1305, // or AeadAlg::Aes256GcmSiv (with "aes" feature)
+    alg: AeadAlg::XChaCha20Poly1305, // or AeadAlg::Aes256GcmSiv
     stream: false,  // set true for large files
     armor: false,
     ..Default::default()
