@@ -76,8 +76,8 @@ Subcommands:
 ### Encrypt
 
 ```bash
-# Simple: prompts for password (if your CLI is set up that way) or read from file if supported
-enc-file enc --in secret.pdf --out secret.enc --alg xchacha
+# Simple: prompts for password (or reads password from file with `-p` `<PATH>`)
+enc-file enc --in secret.pdf --out secret.enc
 ```
 
 Options of interest:
