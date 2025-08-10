@@ -83,7 +83,7 @@ enc-file enc --in secret.pdf --out secret.enc
 Options of interest:
 - `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
 - `--stream` stream mode for large inputs
-- `--chunk-size <bytes>` chunk size in streaming mode (default from library)
+- `--chunk-size <bytes>` set chunk size in streaming mode (default from library)
 - `--armor` ASCII-armor output, attention: armored streaming is not available
 - `--force` / `-f` overwrite output if it exists
 - `--password-file` / `-p` `<PATH>` read password from a file
