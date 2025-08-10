@@ -76,8 +76,14 @@ Subcommands:
 ### Encrypt
 
 ```bash
-# Simple: prompts for password (or reads password from file with -p <PATH>)
-enc-file enc --in secret.pdf --out secret.enc
+# Simple: prompts for password and outputs secret.pdf.enc in same directory
+enc-file enc --in secret.pdf
+```
+
+```bash
+# Specify output filename, use AES-256-GCM-SIV and read password from file <PATH>
+# Use shortcuts -i for --in and -o for --out
+enc-file enc -i secret.pdf -o hidden.enc -a aes -p <PATH> 
 ```
 
 Options of interest:

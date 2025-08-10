@@ -94,7 +94,7 @@ struct EncArgs {
     #[arg(short = 'o', long = "out")]
     output: Option<std::path::PathBuf>,
 
-    #[arg(long, value_enum, default_value_t = AlgChoice::Xchacha)]
+    #[arg(short = 'a',long, value_enum, default_value_t = AlgChoice::Xchacha)]
     alg: AlgChoice,
 
     /// ASCII armor the output (Base64) for copy/paste
