@@ -13,6 +13,7 @@
 
 Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.
 
+> [!CAUTION]
 > **Security note**: This project is **neither** audited **nor** reviewed. It protects data at rest but cannot defend a compromised host or advanced side channels. Use at your own risk. For important or sensitive information, use Veracrypt (or similar) instead.
 
 ## Features
