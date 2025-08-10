@@ -1,6 +1,6 @@
 //! ASCII-armor roundtrip for both algorithms.
 
-use enc_file::{decrypt_bytes, encrypt_bytes, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_bytes, encrypt_bytes};
 use secrecy::SecretString;
 
 const KIB: usize = 1024;
@@ -35,7 +35,7 @@ fn armor_roundtrip_and_detection_both_algs() {
 
 #[test]
 fn file_roundtrip_with_armor_both_algs() {
-    use enc_file::{decrypt_file, encrypt_file, AeadAlg, EncryptOptions};
+    use enc_file::{AeadAlg, EncryptOptions, decrypt_file, encrypt_file};
     use secrecy::SecretString;
     use std::fs::{self, File};
     use std::io::Write;
