@@ -87,6 +87,8 @@ enc-file enc -i secret.pdf -o hidden.enc -a aes -p <PATH>
 ```
 
 Options of interest:
+- `--in` / `-i` specify input file (required)
+- `--out` / `-o` specify output file
 - `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
 - `--stream` stream mode for large inputs
 - `--chunk-size <bytes>` set chunk size in streaming mode (default from library is 1 MiB)
