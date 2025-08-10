@@ -91,6 +91,7 @@ Options of interest:
 ### Decrypt
 
 ```bash
+# Use `--force` / `-f` to overwrite existing file
 enc-file dec --in secret.enc --out secret.pdf
 ```
 
