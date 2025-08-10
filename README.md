@@ -76,7 +76,7 @@ Subcommands:
 ### Encrypt
 
 ```bash
-# Simple: prompts for password (or reads password from file with `-p` `<PATH>`)
+# Simple: prompts for password (or reads password from file with -p <PATH>)
 enc-file enc --in secret.pdf --out secret.enc
 ```
 
@@ -91,7 +91,7 @@ Options of interest:
 ### Decrypt
 
 ```bash
-# Use `--force` / `-f` to overwrite existing file
+# Use --force (or -f) to overwrite existing file
 enc-file dec --in secret.enc --out secret.pdf
 ```
 
