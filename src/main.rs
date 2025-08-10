@@ -86,24 +86,33 @@ pub enum Command {
 
 #[derive(Args, Debug)]
 struct EncArgs {
-    #[arg(long = "in")]
-    input: PathBuf,
-    #[arg(long = "out")]
-    output: Option<PathBuf>,
+    /// Input file
+    #[arg(short = 'i', long = "in")]
+    input: std::path::PathBuf,
+
+    /// Output file (encrypted). If omitted, ".enc" is appended.
+    #[arg(short = 'o', long = "out")]
+    output: Option<std::path::PathBuf>,
+
     #[arg(long, value_enum, default_value_t = AlgChoice::Xchacha)]
     alg: AlgChoice,
+
     /// ASCII armor the output (Base64) for copy/paste
     #[arg(long)]
     armor: bool,
+
     /// Overwrite output if it exists
     #[arg(short = 'f', long = "force")]
     force: bool,
+
     /// Enable streaming mode (constant memory; recommended for very large files)
     #[arg(long)]
     stream: bool,
+
     /// Chunk size for streaming mode (bytes). Default: 1 MiB.
     #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
     chunk_size: usize,
+
     /// Read password from file instead of interactive prompt
     #[arg(short = 'p', long = "password-file")]
     password_file: Option<PathBuf>,
