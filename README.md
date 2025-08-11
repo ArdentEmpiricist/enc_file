@@ -23,7 +23,7 @@ Password-based, authenticated file encryption with a small versioned header and 
 - Compact **binary header** (magic, version, alg, KDF kind/params, salt, nonce, length).
 - Optional **ASCII armor** for transport.
 - **Streaming mode** for large files (constant memory; configurable `chunk_size`).
-- Zeroize-sensitive buffers and use `secrecy` wrappers.
+- Use `secrecy` wrappers and zeroize buffers.
 - Compute a file hash and print it as hex.
 - Usable as **library** and **CLI**.
 
