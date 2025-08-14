@@ -626,54 +626,6 @@ pub struct DecryptOptions {
     pub force: bool,
 }
 
-pub fn decrypt_file_with_options(
-    in_path: &std::path::Path,
-    out_path: Option<&std::path::Path>,
-    password: secrecy::SecretString,
-    opts: DecryptOptions,
-) -> Result<std::path::PathBuf, EncFileError> {
-    use std::{
-        fs,
-        io::Write,
-        path::{Path, PathBuf},
-    };
-
-    // Compute output path (existing logic)
-    let out: PathBuf = match out_path {
-        Some(p) => p.to_path_buf(),
-        None => default_decrypt_output_path(in_path), // your existing helper
-    };
-
-    // Overwrite policy:
-    if out.exists() && !opts.force {
-        return Err(EncFileError::Invalid(
-            "output exists; use --force to overwrite".into(),
-        ));
-    }
-
-    // Write to a temp file next to the destination, then atomically replace.
-    let mut tf = tempfile::NamedTempFile::new_in(out.parent().unwrap_or(Path::new(".")))
-        .map_err(|e| EncFileError::Io(e))?;
-
-    // Write plaintext (streaming or one-shot) to `tf` as you do today…
-    // tf.write_all(&plaintext)?;
-    // If streaming, write incrementally to tf.
-
-    // Ensure data hits disk
-    tf.flush().map_err(EncFileError::Io)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        // Optional: set conservative perms on the decrypted file: 0o600
-        let _ = fs::set_permissions(tf.path(), fs::Permissions::from_mode(0o600));
-    }
-
-    // Now atomically persist the tempfile to the final output path, honoring --force.
-    let out_pathbuf = persist_tempfile_atomic(tf, &out, opts.force)?;
-
-    Ok(out_pathbuf)
-}
-
 fn default_out_path(input: &Path, output: Option<&Path>, ext: &str) -> PathBuf {
     output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
         let mut p = input.to_path_buf();
