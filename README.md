@@ -1,9 +1,9 @@
 [![Crates.io](https://img.shields.io/crates/v/enc_file?label=Crates.io)](https://crates.io/crates/enc_file)
 [![Clippy](https://img.shields.io/github/actions/workflow/status/ArdentEmpiricist/enc_file/rust-clippy.yml?label=Rust%20Clippy)](https://github.com/LazyEmpiricist/enc_file)
 [![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
-[![Documentation](https://docs.rs/enc_file/badge.svg?label=Docs)](https://docs.rs/enc_file/)
+[![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
-[![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue?label=Downloads)](https://crates.io/crates/enc_file)
+[![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
 
 
 # enc_file
