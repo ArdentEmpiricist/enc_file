@@ -46,8 +46,10 @@ fn encrypt_decrypt_files_roundtrip_both_algs() {
 
         write_blob(&in_path, mib(1) + kib(16));
 
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         let pw = SecretString::new("pw".into());
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();
@@ -69,8 +71,10 @@ fn big_file_roundtrip_both_algs() {
 
         write_blob(&in_path, mib(2));
 
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         let pw = SecretString::new("pw".into());
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();
@@ -104,8 +108,10 @@ fn output_overwrite_behavior() {
     write_blob(&in_path, kib(64));
     fs::write(&out_path, b"pre-existing").unwrap();
 
-    let mut opts = EncryptOptions::default();
-    opts.alg = AeadAlg::XChaCha20Poly1305;
+    let opts = EncryptOptions {
+        alg: AeadAlg::XChaCha20Poly1305,
+        ..EncryptOptions::default()
+    };
 
     let pw = SecretString::new("pw".into());
     let res = encrypt_file(&in_path, Some(&out_path), pw, opts);
@@ -142,8 +148,10 @@ fn keymap_save_load_roundtrip_and_streaming_error() {
     assert_eq!(loaded, km);
 
     // --- Case 2: streaming must return the expected Invalid error ---
-    let mut opts_stream = EncryptOptions::default();
-    opts_stream.stream = true;
+    let opts_stream = EncryptOptions {
+        stream: true,
+        ..EncryptOptions::default()
+    };
 
     let err =
         save_keymap(&path_err, pw, &km, &opts_stream).expect_err("streaming keymap should fail");

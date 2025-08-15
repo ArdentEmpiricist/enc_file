@@ -7,7 +7,7 @@
 use std::fs;
 use std::io::{Read, Write};
 
-use enc_file::{decrypt_bytes, decrypt_file, encrypt_bytes, encrypt_file, AeadAlg, EncryptOptions};
+use enc_file::{AeadAlg, EncryptOptions, decrypt_bytes, decrypt_file, encrypt_bytes, encrypt_file};
 use secrecy::SecretString;
 use tempfile::tempdir;
 
@@ -35,8 +35,10 @@ fn hashing_roundtrip_bytes_both_algs() {
     let algs = [AeadAlg::XChaCha20Poly1305, AeadAlg::Aes256GcmSiv];
 
     for &alg in &algs {
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         // Deterministic payload
         let msg = {
@@ -80,8 +82,10 @@ fn hashing_roundtrip_files_both_algs() {
 
         let expected = blake3_32(&data);
 
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         let pw = SecretString::new("hash-file".into());
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();

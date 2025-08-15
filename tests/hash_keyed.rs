@@ -69,8 +69,10 @@ fn keyed_hash_roundtrip_bytes_both_algs() {
 
         let expected_keyed = blake3_32_keyed(&key, &msg);
 
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         let ct = encrypt_bytes(&msg, pw.clone(), &opts).unwrap();
         let round = decrypt_bytes(&ct, pw).unwrap();
@@ -116,8 +118,10 @@ fn keyed_hash_roundtrip_files_both_algs() {
 
         let expected_keyed = blake3_32_keyed(&key, &data);
 
-        let mut opts = EncryptOptions::default();
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            alg,
+            ..EncryptOptions::default()
+        };
 
         encrypt_file(&in_path, Some(&enc_path), pw.clone(), opts).unwrap();
         decrypt_file(&enc_path, Some(&back_path), pw).unwrap();

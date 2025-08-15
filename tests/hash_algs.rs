@@ -1,5 +1,4 @@
 use enc_file::{HashAlg, hash_bytes, hash_bytes_keyed_blake3, hash_file, to_hex_lower};
-use std::io::Write;
 
 #[test]
 fn hash_bytes_known_vectors() {

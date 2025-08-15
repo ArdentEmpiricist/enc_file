@@ -461,11 +461,13 @@ pub fn encrypt_bytes(
 /// assert_eq!(pt, b"data");
 /// ```
 pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, EncFileError> {
+    // Handle ASCII armor first (tail-recursive on the dearmored bytes)
     if looks_armored(input) {
         let bin = dearmor_decode(input)?;
         return decrypt_bytes(&bin, password);
     }
 
+    // Minimal header preflight
     if input.len() < 4 {
         return Err(EncFileError::Malformed);
     }
@@ -473,8 +475,9 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
     if input.len() < 4 + header_len {
         return Err(EncFileError::Malformed);
     }
-    let header: DiskHeader = serde_cbor::from_slice(&input[4..4 + header_len])?;
 
+    // Parse header (CBOR)
+    let header: DiskHeader = serde_cbor::from_slice(&input[4..4 + header_len])?;
     if &header.magic != MAGIC {
         return Err(EncFileError::Malformed);
     }
@@ -482,6 +485,7 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
         return Err(EncFileError::UnsupportedVersion(header.version));
     }
 
+    // Map algorithms
     let aead_alg = match header.aead_alg {
         1 => AeadAlg::XChaCha20Poly1305,
         2 => AeadAlg::Aes256GcmSiv,
@@ -491,19 +495,27 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
         1 => KdfAlg::Argon2id,
         o => return Err(EncFileError::UnsupportedKdf(o)),
     };
-    let _ = kdf_alg;
+    let _ = kdf_alg; // currently only Argon2id is supported
 
+    // Validate header-declared chunk size early (streaming only) -------
+    if let Some(stream) = &header.stream {
+        // Defense-in-depth: reject zero or > u32::MAX - TAG before any heavy work.
+        validate_header_chunk_size(stream.chunk_size as usize)?;
+    }
+
+    // Derive the key (only after header validation to avoid KDF work on malformed input)
     let key = derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
     let body = &input[4 + header_len..];
 
+    // Streaming: parse frames into a Vec<u8> (your helper does the per-frame work)
     if let Some(stream) = &header.stream {
-        // Streaming framed ciphertext in memory: parse frames.
         let pt = decrypt_stream_into_vec(aead_alg, &key, stream, body)?;
         let mut key_z = key;
         key_z.zeroize();
         return Ok(pt);
     }
 
+    // Non-streaming: body length must match `ct_len` from header
     if body.len() as u64 != header.ct_len {
         return Err(EncFileError::Malformed);
     }
@@ -762,6 +774,7 @@ pub fn encrypt_file_streaming(
         opts.stream = true;
     }
     let eff_chunk_size = effective_stream_chunk_size(opts.chunk_size)?;
+    // (Do NOT override eff_chunk_size afterwards.)
     //let eff_chunk_size = opts.chunk_size.max(1024);
     let out_path = default_out_path(input, output, "enc");
 
@@ -972,6 +985,10 @@ fn decrypt_stream_into_vec(
     stream: &StreamInfo,
     body: &[u8],
 ) -> Result<Vec<u8>, EncFileError> {
+    // 0) Validate header-declared chunk size (defense-in-depth) and cache it.
+    validate_header_chunk_size(stream.chunk_size as usize)?;
+    let hdr_chunk_size = stream.chunk_size as usize;
+
     let mut out = Vec::new();
     let mut idx = 0usize;
 
@@ -993,34 +1010,43 @@ fn decrypt_stream_into_vec(
             // Initialize the streaming decryptor
             let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
 
-            // Walk all frames: decrypt_next for non-final frames,
-            // remember the final frame ciphertext and decrypt it once at the end.
-            let mut idx = 0usize;
-            //let mut final_ct: Option<&[u8]> = None;
-
             loop {
+                // Frame prelude: [flags:1][len_be:4]
                 if idx + 1 + 4 > body.len() {
                     return Err(EncFileError::Malformed);
                 }
-
                 let flags = body[idx];
                 idx += 1;
                 let len = u32::from_be_bytes(body[idx..idx + 4].try_into().unwrap()) as usize;
                 idx += 4;
+                let is_final = (flags & FLAG_FINAL) != 0;
+
+                // ---- per-frame length checks (before slicing/decrypt) ----
+                if len < AEAD_TAG_LEN {
+                    return Err(EncFileError::Invalid("frame too short"));
+                }
+                let max_ct = hdr_chunk_size
+                    .checked_add(AEAD_TAG_LEN)
+                    .ok_or(EncFileError::Invalid("chunk_size overflow"))?;
+                if len > max_ct {
+                    // Applies to both final and non-final frames
+                    return Err(EncFileError::Invalid("frame length exceeds chunk_size"));
+                }
+                // ---------------------------------------------------------
+
                 if idx + len > body.len() {
                     return Err(EncFileError::Malformed);
                 }
-
                 let ct = &body[idx..idx + len];
                 idx += len;
 
-                if (flags & FLAG_FINAL) != 0 {
-                    // Final chunk: decrypt_last consumes den Decryptor
+                if is_final {
+                    // Final chunk: decrypt_last consumes the decryptor
                     let pt_final = dec.decrypt_last(ct).map_err(|_| EncFileError::Crypto)?;
                     out.extend_from_slice(&pt_final);
                     break;
                 } else {
-                    // Non-final chunk: decrypt_next
+                    // Non-final chunk
                     let pt = dec.decrypt_next(ct).map_err(|_| EncFileError::Crypto)?;
                     out.extend_from_slice(&pt);
                 }
@@ -1031,7 +1057,9 @@ fn decrypt_stream_into_vec(
             let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
             let prefix = &stream.nonce_prefix;
             let mut counter: u32 = 0;
+
             loop {
+                // Frame prelude: [flags:1][len_be:4]
                 if idx + 1 + 4 > body.len() {
                     return Err(EncFileError::Malformed);
                 }
@@ -1039,12 +1067,27 @@ fn decrypt_stream_into_vec(
                 idx += 1;
                 let len = u32::from_be_bytes(body[idx..idx + 4].try_into().unwrap()) as usize;
                 idx += 4;
+                let is_final = (flags & FLAG_FINAL) != 0;
+
+                // ---- per-frame length checks (before slicing/decrypt) ----
+                if len < AEAD_TAG_LEN {
+                    return Err(EncFileError::Invalid("frame too short"));
+                }
+                let max_ct = hdr_chunk_size
+                    .checked_add(AEAD_TAG_LEN)
+                    .ok_or(EncFileError::Invalid("chunk_size overflow"))?;
+                if len > max_ct {
+                    return Err(EncFileError::Invalid("frame length exceeds chunk_size"));
+                }
+                // ---------------------------------------------------------
+
                 if idx + len > body.len() {
                     return Err(EncFileError::Malformed);
                 }
                 let ct = &body[idx..idx + len];
                 idx += len;
 
+                // Build per-frame nonce: prefix (8 bytes) || counter_be (4 bytes)
                 let mut nonce_bytes = [0u8; 12];
                 nonce_bytes[..8].copy_from_slice(prefix);
                 nonce_bytes[8..].copy_from_slice(&counter.to_be_bytes());
@@ -1054,7 +1097,11 @@ fn decrypt_stream_into_vec(
                     .decrypt(GenericArray::from_slice(&nonce_bytes), ct)
                     .map_err(|_| EncFileError::Crypto)?;
                 out.extend_from_slice(&pt);
-                if (flags & FLAG_FINAL) != 0 {
+
+                // Optional hardening (cheap): wipe nonce bytes
+                nonce_bytes.zeroize();
+
+                if is_final {
                     break;
                 }
             }

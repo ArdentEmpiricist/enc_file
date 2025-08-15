@@ -9,23 +9,19 @@ use tempfile::tempdir;
 
 use proptest::prelude::*;
 
-const KIB: usize = 1024;
 const MIB: usize = 1024 * 1024;
 
-#[inline]
-fn kib(n: usize) -> usize {
-    n.saturating_mul(KIB)
-}
 #[inline]
 fn mib(n: usize) -> usize {
     n.saturating_mul(MIB)
 }
 
 fn streaming_opts(alg: AeadAlg) -> EncryptOptions {
-    let mut opts = EncryptOptions::default();
-    opts.alg = alg;
-    opts.stream = true;
-    opts
+    EncryptOptions {
+        alg,
+        stream: true,
+        ..EncryptOptions::default()
+    }
 }
 
 proptest! {

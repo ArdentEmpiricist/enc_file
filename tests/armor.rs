@@ -4,15 +4,10 @@ use enc_file::{AeadAlg, EncryptOptions, decrypt_bytes, encrypt_bytes};
 use secrecy::SecretString;
 
 const KIB: usize = 1024;
-const MIB: usize = 1024 * 1024;
 
 #[inline]
 fn kib(n: usize) -> usize {
     n.saturating_mul(KIB)
-}
-#[inline]
-fn mib(n: usize) -> usize {
-    n.saturating_mul(MIB)
 }
 
 #[test]
@@ -21,9 +16,11 @@ fn armor_roundtrip_and_detection_both_algs() {
 
     for &alg in &algs {
         let pw = SecretString::new("pw".into());
-        let mut opts = EncryptOptions::default();
-        opts.armor = true;
-        opts.alg = alg;
+        let opts = EncryptOptions {
+            armor: true,
+            alg,
+            ..EncryptOptions::default()
+        };
 
         let msg = vec![0x41; kib(4)]; // 'A' repeated
         let ct = encrypt_bytes(&msg, pw.clone(), &opts).unwrap();

@@ -8,7 +8,6 @@ use enc_file::{
 use proptest::prelude::*;
 use proptest::test_runner::Config as ProptestConfig;
 use secrecy::SecretString;
-use std::{fs, io::Write};
 use tempfile::NamedTempFile;
 
 // Bring the base64::Engine trait into scope so .decode() works.
@@ -281,18 +280,19 @@ fn smoke_payload_only_covering_algorithms_and_armor() {
     ] {
         for &armor in &[false, true] {
             // --- Bytes API (stream MUST be false for encrypt_bytes) ---
-            let mut opts = enc_file::EncryptOptions::default();
-            opts.alg = alg;
-            opts.armor = armor;
-            opts.stream = false; // <- important: encrypt_bytes rejects stream=true
-            // speed up KDF in this test only
-            opts.kdf = enc_file::KdfAlg::Argon2id;
-            opts.kdf_params = enc_file::KdfParams {
-                t_cost: 1,
-                mem_kib: 4 * 1024,
-                parallelism: 1,
+            let opts = enc_file::EncryptOptions {
+                alg,
+                armor,
+                stream: false, // <- important: encrypt_bytes rejects stream=true
+                kdf: enc_file::KdfAlg::Argon2id,
+                kdf_params: enc_file::KdfParams {
+                    t_cost: 1,
+                    mem_kib: 4 * 1024,
+                    parallelism: 1,
+                },
+                force: true,
+                ..enc_file::EncryptOptions::default()
             };
-            opts.force = true;
 
             let ct = enc_file::encrypt_bytes(&data, pw.clone(), &opts).unwrap();
             let bin = if enc_file::looks_armored(&ct) {
@@ -332,19 +332,20 @@ fn smoke_payload_only_covering_algorithms_and_armor() {
             let mut infile = tempfile::NamedTempFile::new().unwrap();
             infile.write_all(&data).unwrap();
 
-            let mut fopts = enc_file::EncryptOptions::default();
-            fopts.alg = alg;
-            fopts.armor = armor;
-            fopts.stream = true;
-            fopts.chunk_size = 1024; // smaller chunk for speed
-            // same fast KDF for the test
-            fopts.kdf = enc_file::KdfAlg::Argon2id;
-            fopts.kdf_params = enc_file::KdfParams {
-                t_cost: 1,
-                mem_kib: 4 * 1024,
-                parallelism: 1,
+            let fopts = enc_file::EncryptOptions {
+                alg,
+                armor,
+                stream: true,
+                chunk_size: 1024, // smaller chunk for speed
+                kdf: enc_file::KdfAlg::Argon2id,
+                kdf_params: enc_file::KdfParams {
+                    t_cost: 1,
+                    mem_kib: 4 * 1024,
+                    parallelism: 1,
+                },
+                force: true,
+                // Add any other fields from the default explicitly if needed
             };
-            fopts.force = true;
 
             let out =
                 enc_file::encrypt_file_streaming(infile.path(), None, pw.clone(), fopts).unwrap();

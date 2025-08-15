@@ -66,13 +66,13 @@ use secrecy::SecretString;
     version,
     about = "Encrypt/decrypt files and compute hashes"
 )]
-pub struct Cli {
+struct Cli {
     #[command(subcommand)]
-    pub cmd: Command,
+    cmd: Command,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum Command {
+enum Command {
     /// Encrypt a file (use --stream for large files)
     Enc(EncArgs),
     /// Decrypt a file
@@ -403,13 +403,4 @@ fn compute_default_dec_out(input: &Path) -> PathBuf {
         p.set_extension("dec");
         p
     }
-}
-
-fn to_hex(bytes: &[u8]) -> String {
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        use std::fmt::Write as _;
-        let _ = write!(&mut s, "{b:02x}");
-    }
-    s
 }
