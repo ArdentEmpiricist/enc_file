@@ -57,7 +57,7 @@ Add to a project as a library:
 ```toml
 # Cargo.toml
 [dependencies]
-enc_file = "0.5.11"
+enc_file = "0.5.12"
 ```
 
 ---
