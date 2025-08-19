@@ -51,19 +51,72 @@ mod format;
 mod kdf;
 mod crypto;
 mod armor;
-mod file;
-mod keymap;
-mod hash;
 
 // Re-export public API from modules
 pub use types::*;
 pub use crypto::{encrypt_bytes, decrypt_bytes};
 pub use armor::looks_armored;
-pub use file::{encrypt_file, decrypt_file, default_decrypt_output_path, persist_tempfile_atomic};
-pub use keymap::{load_keymap, save_keymap};
-pub use hash::{HashAlg, hash_file, hash_bytes, hash_bytes_keyed_blake3, hash_file_keyed_blake3, to_hex_lower};
 
-// Temporary placeholder for streaming functionality - TODO: implement streaming module
+// Temporary placeholder for the rest - we'll move these in subsequent steps
+// TODO: Remove these placeholder functions once all modules are complete
+
+/// Temporary placeholder function
+pub fn encrypt_file(
+    _input: &std::path::Path,
+    _output: Option<&std::path::Path>,
+    _password: secrecy::SecretString,
+    _opts: EncryptOptions,
+) -> Result<std::path::PathBuf, EncFileError> {
+    unimplemented!("Will be moved to file module")
+}
+
+/// Temporary placeholder function
+pub fn decrypt_file(
+    _input: &std::path::Path,
+    _output: Option<&std::path::Path>,
+    _password: secrecy::SecretString,
+) -> Result<std::path::PathBuf, EncFileError> {
+    unimplemented!("Will be moved to file module")
+}
+
+/// Temporary placeholder function
+pub fn load_keymap(
+    _path: &std::path::Path,
+    _password: secrecy::SecretString,
+) -> Result<KeyMap, EncFileError> {
+    unimplemented!("Will be moved to keymap module")
+}
+
+/// Temporary placeholder function
+pub fn save_keymap(
+    _path: &std::path::Path,
+    _password: secrecy::SecretString,
+    _map: &KeyMap,
+    _opts: &EncryptOptions,
+) -> Result<(), EncFileError> {
+    unimplemented!("Will be moved to keymap module")
+}
+
+/// Temporary placeholder enum
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HashAlg {
+    #[default]
+    Blake3,
+}
+
+/// Temporary placeholder function
+pub fn hash_file(
+    _path: &std::path::Path,
+    _alg: HashAlg,
+) -> Result<Vec<u8>, EncFileError> {
+    unimplemented!("Will be moved to hash module")
+}
+
+/// Temporary placeholder function
+pub fn to_hex_lower(_bytes: &[u8]) -> String {
+    unimplemented!("Will be moved to hash module")
+}
+
 /// Temporary placeholder function
 pub fn encrypt_file_streaming(
     _input: &std::path::Path,
@@ -71,12 +124,26 @@ pub fn encrypt_file_streaming(
     _password: secrecy::SecretString,
     _opts: EncryptOptions,
 ) -> Result<std::path::PathBuf, EncFileError> {
-    Err(EncFileError::Invalid("streaming not yet implemented in refactored code"))
+    unimplemented!("Will be moved to streaming module")
 }
 
 /// Temporary placeholder function
 pub fn validate_chunk_size_for_streaming(_chunk_size: usize) -> Result<(), EncFileError> {
-    Ok(()) // TODO: implement in streaming module
+    unimplemented!("Will be moved to streaming module")
+}
+
+/// Temporary placeholder function
+pub fn persist_tempfile_atomic(
+    _tmp: tempfile::NamedTempFile,
+    _out: &std::path::Path,
+    _force: bool,
+) -> Result<std::path::PathBuf, EncFileError> {
+    unimplemented!("Will be moved to file module")
+}
+
+/// Temporary placeholder function
+pub fn default_decrypt_output_path(_in_path: &std::path::Path) -> std::path::PathBuf {
+    unimplemented!("Will be moved to file module")
 }
 
 // Keep tests at the end for now
