@@ -10,7 +10,7 @@ pub fn derive_key_argon2id(
     params: KdfParams,
     salt: &[u8],
 ) -> Result<[u8; 32], EncFileError> {
-    let argon_params = Params::new(params.mem_kib, params.time_cost, params.parallelism, None)
+    let argon_params = Params::new(params.mem_kib, params.t_cost, params.parallelism, None)
         .map_err(|_| EncFileError::Invalid("invalid Argon2 params"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon_params);
     let mut out = [0u8; 32];

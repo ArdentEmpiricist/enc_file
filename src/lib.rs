@@ -54,6 +54,7 @@ mod armor;
 mod file;
 mod keymap;
 mod hash;
+mod streaming;
 
 // Re-export public API from modules
 pub use types::*;
@@ -62,22 +63,7 @@ pub use armor::looks_armored;
 pub use file::{encrypt_file, decrypt_file, default_decrypt_output_path, persist_tempfile_atomic};
 pub use keymap::{load_keymap, save_keymap};
 pub use hash::{HashAlg, hash_file, hash_bytes, hash_bytes_keyed_blake3, hash_file_keyed_blake3, to_hex_lower};
-
-// Temporary placeholder for streaming functionality - TODO: implement streaming module
-/// Temporary placeholder function
-pub fn encrypt_file_streaming(
-    _input: &std::path::Path,
-    _output: Option<&std::path::Path>,
-    _password: secrecy::SecretString,
-    _opts: EncryptOptions,
-) -> Result<std::path::PathBuf, EncFileError> {
-    Err(EncFileError::Invalid("streaming not yet implemented in refactored code"))
-}
-
-/// Temporary placeholder function
-pub fn validate_chunk_size_for_streaming(_chunk_size: usize) -> Result<(), EncFileError> {
-    Ok(()) // TODO: implement in streaming module
-}
+pub use streaming::{encrypt_file_streaming, validate_chunk_size_for_streaming};
 
 // Keep tests at the end for now
 #[cfg(test)]

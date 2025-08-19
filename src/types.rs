@@ -27,7 +27,7 @@ pub enum KdfAlg {
 /// Tunable KDF parameters (mem_kib in KiB).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct KdfParams {
-    pub time_cost: u32,
+    pub t_cost: u32,
     pub mem_kib: u32,
     pub parallelism: u32,
 }
@@ -35,8 +35,8 @@ pub struct KdfParams {
 impl Default for KdfParams {
     fn default() -> Self {
         Self {
-            time_cost: 3,
-            mem_kib: 65536, // 64 MiB
+            t_cost: 2,
+            mem_kib: 64 * 1024,
             parallelism: 1,
         }
     }

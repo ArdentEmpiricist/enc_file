@@ -23,8 +23,7 @@ pub fn encrypt_file(
     opts: EncryptOptions,
 ) -> Result<PathBuf, EncFileError> {
     if opts.stream {
-        // For now, return an error until we implement streaming module
-        return Err(EncFileError::Invalid("streaming not yet implemented in refactored code"));
+        return crate::streaming::encrypt_file_streaming(input, output, password, opts);
     }
     let mut data = Vec::new();
     File::open(input)?.read_to_end(&mut data)?;
