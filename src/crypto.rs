@@ -15,9 +15,6 @@ use crate::armor::{armor_encode, dearmor_decode, looks_armored};
 /// AEAD tag length in bytes (Poly1305 and GCM-SIV are 16 bytes).
 pub const AEAD_TAG_LEN: usize = 16;
 
-/// Frame flags: bit0 set => last chunk.
-const FLAG_FINAL: u8 = 1;
-
 pub fn aead_encrypt(
     alg: AeadAlg,
     key: &[u8; 32],
@@ -80,9 +77,14 @@ pub fn nonce_len_for(alg: AeadAlg) -> usize {
 /// Validate a chunk size coming *from the header* during decryption.
 /// This defends against malformed/crafted inputs.
 pub fn validate_header_chunk_size(chunk_size: usize) -> Result<(), EncFileError> {
-    const MAX_CHUNK_SIZE_BYTES: usize = 0x3fff_0000; // ~1 GiB
-    if chunk_size == 0 || chunk_size > MAX_CHUNK_SIZE_BYTES {
-        return Err(EncFileError::Invalid("invalid chunk size in header"));
+    if chunk_size == 0 {
+        return Err(EncFileError::Invalid("invalid chunk_size in header"));
+    }
+    let max_pt = (u32::MAX as usize).saturating_sub(AEAD_TAG_LEN);
+    if chunk_size > max_pt {
+        return Err(EncFileError::Invalid(
+            "chunk_size exceeds 32-bit frame in header",
+        ));
     }
     Ok(())
 }
