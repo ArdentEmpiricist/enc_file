@@ -67,7 +67,7 @@ pub fn derive_key_argon2id(
     // Validate salt length
     if salt.len() < MIN_SALT_LENGTH {
         return Err(EncFileError::Invalid(
-            "salt must be at least 8 bytes for security",
+            &format!("salt must be at least {} bytes (got {} bytes)", MIN_SALT_LENGTH, salt.len()),
         ));
     }
 
