@@ -180,7 +180,11 @@ pub fn encrypt_file_streaming(
 
         AeadAlg::Aes256GcmSiv => {
             let cipher = create_aes256gcmsiv_cipher(&key)?;
-            let prefix = &header.stream.as_ref().unwrap().nonce_prefix;
+            let stream = match header.stream.as_ref() {
+                Some(s) => s,
+                None => return Err(EncFileError::Format("missing stream info".into())),
+            };
+            let prefix = &stream.nonce_prefix;
             let mut counter = 0u32;
 
             loop {
