@@ -31,7 +31,7 @@ const FLAG_FINAL: u8 = 1;
 pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFileError> {
     if chunk_size == 0 {
         // Standardized message used across encryption/decryption paths
-        return Err(EncFileError::Invalid("chunk_size must be > 0"));
+        return Err(EncFileError::Invalid("streaming chunk_size must be > 0"));
     }
 
     // Leave room for AEAD tag without overflow in the 32-bit ciphertext length field.
