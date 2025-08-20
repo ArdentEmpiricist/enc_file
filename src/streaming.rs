@@ -195,6 +195,8 @@ pub fn encrypt_file_streaming(
 
                 // If we are at the last available counter and there's more data, we'd overflow.
                 if counter == u32::MAX && !is_final {
+                    // If we have reached the maximum number of frames and the current frame is not final,
+                    // we cannot safely continue (would overflow the counter).
                     return Err(EncFileError::Invalid("too many frames for 32-bit counter"));
                 }
 
