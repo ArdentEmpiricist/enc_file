@@ -197,37 +197,29 @@ pub fn encrypt_file_streaming(
 
             loop {
                 let n = reader.read(&mut buf)?;
-                let is_final = n == 0;
+                // Mark final on EOF OR on a short read (< chunk size)
+                let is_final = n == 0 || n < eff_chunk_size;
 
-                if is_final && counter == 0 {
-                    // Empty file: write a single empty final frame
-                    let mut nonce_bytes = prefix.clone();
-                    nonce_bytes.extend_from_slice(&counter.to_be_bytes());
-                    let ct = cipher
-                        .encrypt(GenericArray::from_slice(&nonce_bytes), &[][..])
-                        .map_err(|_| EncFileError::Crypto)?;
-                    write_frame(&mut writer, &ct, true)?;
-                    break;
-                }
+                // Build 12-byte nonce = 8-byte prefix || 4-byte BE counter
+                let mut nonce_bytes = prefix.clone();
+                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
+                counter = counter.wrapping_add(1);
 
+                // Encrypt this chunk (n may be 0 for the final empty frame)
+                let pt = &buf[..n];
+                let ct = cipher
+                    .encrypt(GenericArray::from_slice(&nonce_bytes), pt)
+                    .map_err(|_| EncFileError::Crypto)?;
+                write_frame(&mut writer, &ct, is_final)?;
+
+                // Wipe sensitive material
                 if n > 0 {
-                    let mut nonce_bytes = prefix.clone();
-                    nonce_bytes.extend_from_slice(&counter.to_be_bytes());
-                    counter += 1;
+                    buf[..n].zeroize();
+                }
+                nonce_bytes.zeroize();
 
-                    let pt = &buf[..n];
-                    let ct = cipher
-                        .encrypt(GenericArray::from_slice(&nonce_bytes), pt)
-                        .map_err(|_| EncFileError::Crypto)?;
-                    write_frame(&mut writer, &ct, is_final)?;
-
-                    // Cheap hardening: wipe sensitive material used this iteration
-                    buf[..n].zeroize(); // wipe plaintext we just processed
-                    nonce_bytes.zeroize(); // wipe nonce bytes
-
-                    if is_final {
-                        break;
-                    }
+                if is_final {
+                    break;
                 }
             }
             buf.zeroize();
