@@ -98,7 +98,7 @@ fn dec_rejects_zero_chunk_size_in_header_for_both_algs() {
                 let ok = msg_contains_any(
                     &msg,
                     &[
-                        "chunk_size",     // preferred underscore form
+                        "chunk_size",     // underscore form
                         "chunk size",     // space form
                         "must be > 0",    // explicit lower bound
                         "cannot be zero", // alternate phrasing

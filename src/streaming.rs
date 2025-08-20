@@ -30,14 +30,16 @@ const FLAG_FINAL: u8 = 1;
 /// the 32-bit frame length field.
 pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFileError> {
     if chunk_size == 0 {
-        return Err(EncFileError::Invalid("chunk size cannot be zero"));
+        // Standardized message used across encryption/decryption paths
+        return Err(EncFileError::Invalid("chunk_size must be > 0"));
     }
 
-    // Leave room for AEAD tag without overflow
+    // Leave room for AEAD tag without overflow in the 32-bit ciphertext length field.
     let max_frame_size = (u32::MAX as usize).saturating_sub(AEAD_TAG_LEN);
     if chunk_size > max_frame_size {
+        // Standardized message to indicate 32-bit framing limit
         return Err(EncFileError::Invalid(
-            "chunk size too large for frame format",
+            "chunk_size too large for 32-bit frame",
         ));
     }
 
@@ -56,18 +58,9 @@ fn effective_stream_chunk_size(user: usize) -> Result<usize, EncFileError> {
 }
 
 /// Validate chunk size from header during decryption.
+/// Keep behavior/messages consistent with streaming validator.
 fn validate_header_chunk_size(chunk_size: usize) -> Result<(), EncFileError> {
-    if chunk_size == 0 {
-        return Err(EncFileError::Malformed);
-    }
-
-    // Prevent large allocations from malicious headers
-    let max_reasonable = 256 * 1024 * 1024; // 256 MiB
-    if chunk_size > max_reasonable {
-        return Err(EncFileError::Invalid("header chunk size too large"));
-    }
-
-    Ok(())
+    validate_chunk_size_for_streaming(chunk_size)
 }
 
 /// Write a streaming frame with format: [u8 flags][u32 ct_len_be][ct_bytes]
@@ -200,6 +193,11 @@ pub fn encrypt_file_streaming(
                 // Mark final on EOF OR on a short read (< chunk size)
                 let is_final = n == 0 || n < eff_chunk_size;
 
+                // If we are at the last available counter and there's more data, we'd overflow.
+                if counter == u32::MAX && !is_final {
+                    return Err(EncFileError::Invalid("too many frames for 32-bit counter"));
+                }
+
                 // Build 12-byte nonce = 8-byte prefix || 4-byte BE counter
                 let mut nonce_bytes = prefix.clone();
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
@@ -248,7 +246,7 @@ pub fn decrypt_stream_into_vec(
     stream: &StreamInfo,
     mut body: &[u8],
 ) -> Result<Vec<u8>, EncFileError> {
-    // Validate header-declared chunk size early
+    // Validate header-declared chunk size early, using unified policy
     validate_header_chunk_size(stream.chunk_size as usize)?;
 
     let mut out = Vec::new();
@@ -295,6 +293,12 @@ pub fn decrypt_stream_into_vec(
         AeadAlg::Aes256GcmSiv => {
             let cipher = create_aes256gcmsiv_cipher(key)?;
             let prefix = &stream.nonce_prefix;
+
+            // Ensure AES-GCM-SIV nonce prefix is exactly 8 bytes
+            if prefix.len() != 8 {
+                return Err(EncFileError::Malformed);
+            }
+
             let mut counter = 0u32;
 
             loop {
@@ -319,7 +323,7 @@ pub fn decrypt_stream_into_vec(
                 // Reconstruct nonce
                 let mut nonce_bytes = prefix.clone();
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
-                counter += 1;
+                counter = counter.wrapping_add(1);
 
                 let pt = cipher
                     .decrypt(GenericArray::from_slice(&nonce_bytes), ct)
