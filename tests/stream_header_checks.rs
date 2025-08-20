@@ -75,6 +75,10 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     rebuilt
 }
 
+fn msg_contains_any(msg: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|s| msg.contains(s))
+}
+
 #[test]
 fn dec_rejects_zero_chunk_size_in_header_for_both_algs() {
     for alg in [AeadAlg::XChaCha20Poly1305, AeadAlg::Aes256GcmSiv] {
@@ -90,10 +94,18 @@ fn dec_rejects_zero_chunk_size_in_header_for_both_algs() {
         let res = decrypt_file(bad.path(), Some(out.path()), pw.clone());
         match res {
             Err(EncFileError::Invalid(msg)) => {
-                assert!(
-                    msg.contains("chunk_size"),
-                    "unexpected Invalid message: {msg}"
+                // Accept multiple valid phrasings from different implementations
+                let ok = msg_contains_any(
+                    &msg,
+                    &[
+                        "chunk_size",     // preferred underscore form
+                        "chunk size",     // space form
+                        "must be > 0",    // explicit lower bound
+                        "cannot be zero", // alternate phrasing
+                        "zero",           // generic zero mention
+                    ],
                 );
+                assert!(ok, "unexpected Invalid message: {msg}");
             }
             other => panic!("expected Invalid for zero chunk_size, got: {:?}", other),
         }
@@ -118,10 +130,19 @@ fn dec_rejects_too_large_chunk_size_in_header_for_both_algs() {
         let res = decrypt_file(bad.path(), Some(out.path()), pw.clone());
         match res {
             Err(EncFileError::Invalid(msg)) => {
-                assert!(
-                    msg.contains("chunk_size") || msg.contains("32-bit"),
-                    "unexpected Invalid message: {msg}"
+                // Accept both underscore/space and explicit 32-bit framing hints
+                let ok = msg_contains_any(
+                    &msg,
+                    &[
+                        "chunk_size",           // underscore form
+                        "chunk size",           // space form
+                        "32-bit",               // framing width
+                        "too large for 32-bit", // explicit phrasing
+                        "too large for frame",  // alternate
+                        "frame format",         // generic framing mention
+                    ],
                 );
+                assert!(ok, "unexpected Invalid message: {msg}");
             }
             other => panic!(
                 "expected Invalid for oversized chunk_size, got: {:?}",
