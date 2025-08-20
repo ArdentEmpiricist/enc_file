@@ -66,9 +66,7 @@ pub fn derive_key_argon2id(
 ) -> Result<[u8; 32], EncFileError> {
     // Validate salt length
     if salt.len() < MIN_SALT_LENGTH {
-        return Err(EncFileError::Invalid(
-            &format!("salt must be at least {} bytes (got {} bytes)", MIN_SALT_LENGTH, salt.len()),
-        ));
+        return Err(EncFileError::Invalid("salt must be at least 8 bytes"));
     }
 
     // Validate memory cost
@@ -80,9 +78,7 @@ pub fn derive_key_argon2id(
 
     // Validate time cost
     if params.t_cost < MIN_TIME_COST {
-        return Err(EncFileError::Invalid(
-            "Argon2 time cost must be at least 1",
-        ));
+        return Err(EncFileError::Invalid("Argon2 time cost must be at least 1"));
     }
 
     // Validate parallelism
@@ -95,14 +91,14 @@ pub fn derive_key_argon2id(
     // Create Argon2 parameters
     let argon_params = Params::new(params.mem_kib, params.t_cost, params.parallelism, None)
         .map_err(|_| EncFileError::Invalid("invalid Argon2 params"))?;
-    
+
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon_params);
     let mut out = [0u8; 32];
-    
+
     // Perform key derivation
     argon2
         .hash_password_into(password.expose_secret().as_bytes(), salt, &mut out)
         .map_err(|_| EncFileError::Crypto)?;
-    
+
     Ok(out)
 }
