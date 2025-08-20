@@ -251,6 +251,9 @@ pub fn decrypt_stream_into_vec(
     match alg {
         AeadAlg::XChaCha20Poly1305 => {
             let cipher = create_xchacha20poly1305_cipher(key)?;
+            if stream.nonce_prefix.len() != 19 {
+                return Err(EncFileError::Malformed);
+            }
             let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream.nonce_prefix);
             let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
 
