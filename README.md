@@ -5,7 +5,6 @@
 [![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
 
-
 # enc_file
 
 <p align="center">
@@ -35,16 +34,19 @@ Password-based, authenticated file encryption with a small versioned header and 
 You can install **enc-file** in several ways:
 
 ### From crates.io (requires Rust toolchain)
+
 ```bash
 cargo install enc-file
 ```
 
 ### From GitHub Releases (prebuilt binaries)
+
 1. Visit the [Releases page](https://github.com/ArdentEmpiricist/enc_file/releases).
 2. Download the binary for your platform.
 3. Place it in a directory in your `PATH`.
 
 ### From source
+
 ```bash
 # from source
 cargo build --release
@@ -57,7 +59,7 @@ Add to a project as a library:
 ```toml
 # Cargo.toml
 [dependencies]
-enc_file = "0.5.12"
+enc_file = "0.5.13"
 ```
 
 ---
@@ -88,6 +90,7 @@ enc-file enc -i secret.pdf -o hidden.enc -a aes -p <PATH>
 ```
 
 Options of interest:
+
 - `--in` / `-i` specify input file (required)
 - `--out` / `-o` specify output file
 - `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
@@ -177,6 +180,7 @@ let opts = EncryptOptions {
 let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 # Ok::<(), enc_file::EncFileError>(())
 ```
+
 > **Chunk size:** In streaming mode, `chunk_size = 0` uses the default (1 MiB). The maximum allowed is `u32::MAX - 16` bytes, because each frame’s length is a 32-bit count of ciphertext bytes and the AEAD adds a 16-byte tag.
 
 ### Hash helpers
@@ -184,6 +188,7 @@ let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 ### Supported Hash Algorithms
 
 Both the CLI and library support multiple hashing algorithms for files and byte slices:
+
 | Algorithm            | CLI `--alg` value(s)                                      | Output length |
 |----------------------|-----------------------------------------------------------|---------------|
 | **BLAKE3**           | `blake3`                                                  | 32 bytes      |
@@ -200,6 +205,7 @@ Both the CLI and library support multiple hashing algorithms for files and byte 
 > XXH3 and CRC32 are non-cryptographic! Use with care.
 
 **CLI Example**:
+
 ```bash
 # Compute SHA3-512 hash of a file
 enc-file hash --file data.bin --alg sha3-512
@@ -209,13 +215,13 @@ enc-file hash --file data.bin --alg xxh3-64
 ```
 
 **Library Example**:
+
 ```rust
 use enc_file::{hash_file, to_hex_lower, HashAlg};
 let digest = hash_file(std::path::Path::new("data.bin"), HashAlg::Sha3_512)?;
 println!("{}", to_hex_lower(&digest));
 # Ok::<(), enc_file::EncFileError>(())
 ```
-
 
 ```rust
 use enc_file::{hash_bytes, hash_file, to_hex_lower, HashAlg};
@@ -265,6 +271,7 @@ assert_eq!(loaded, km);
 ## Error handling
 
 All fallible APIs return `Result<_, EncFileError>`. Common cases:
+
 - `EncFileError::Io` I/O failures
 - `EncFileError::Crypto` AEAD failures (bad password, tamper)
 - `EncFileError::Format` header parsing/validation issues
@@ -314,4 +321,3 @@ This naming separation is intentional and follows common conventions.
 ## Feedback & Issues
 
 Feedback, bug reports, and pull requests are highly appreciated! Open an [Issue](https://github.com/ArdentEmpiricist/enc_file/issues) or [start a discussion](https://github.com/ArdentEmpiricist/enc_file/discussions).
-
