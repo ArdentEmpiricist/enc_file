@@ -3,7 +3,9 @@
 //! This module provides constant-memory streaming encryption/decryption
 //! using chunked framing. It supports both XChaCha20-Poly1305 and AES-256-GCM-SIV.
 
-use crate::crypto::{create_aes256gcmsiv_cipher, create_xchacha20poly1305_cipher, generate_salt, AEAD_TAG_LEN};
+use crate::crypto::{
+    AEAD_TAG_LEN, create_aes256gcmsiv_cipher, create_xchacha20poly1305_cipher, generate_salt,
+};
 use crate::file::default_out_path;
 use crate::format::{DiskHeader, StreamInfo};
 use crate::kdf::derive_key_argon2id;
@@ -30,13 +32,15 @@ pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFil
     if chunk_size == 0 {
         return Err(EncFileError::Invalid("chunk size cannot be zero"));
     }
-    
+
     // Leave room for AEAD tag without overflow
     let max_frame_size = (u32::MAX as usize).saturating_sub(AEAD_TAG_LEN);
     if chunk_size > max_frame_size {
-        return Err(EncFileError::Invalid("chunk size too large for frame format"));
+        return Err(EncFileError::Invalid(
+            "chunk size too large for frame format",
+        ));
     }
-    
+
     Ok(())
 }
 
@@ -56,13 +60,13 @@ fn validate_header_chunk_size(chunk_size: usize) -> Result<(), EncFileError> {
     if chunk_size == 0 {
         return Err(EncFileError::Malformed);
     }
-    
+
     // Prevent large allocations from malicious headers
     let max_reasonable = 256 * 1024 * 1024; // 256 MiB
     if chunk_size > max_reasonable {
         return Err(EncFileError::Invalid("header chunk size too large"));
     }
-    
+
     Ok(())
 }
 
@@ -90,12 +94,12 @@ pub fn encrypt_file_streaming(
         opts.chunk_size = crate::types::DEFAULT_CHUNK_SIZE;
     }
     let eff_chunk_size = effective_stream_chunk_size(opts.chunk_size)?;
-    
+
     // Force streaming mode
     if !opts.stream {
         opts.stream = true;
     }
-    
+
     let out_path = default_out_path(input, output, "enc");
 
     if out_path.exists() && !opts.force {
@@ -153,7 +157,7 @@ pub fn encrypt_file_streaming(
             let cipher = create_xchacha20poly1305_cipher(&key)?;
             let stream_info = match &header.stream {
                 Some(s) => s,
-                None => return Err(EncFileError::Format("Missing stream info".into())),
+                None => return Err(EncFileError::Invalid("missing stream info")),
             };
             let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
             let mut enc = EncryptorBE32::from_aead(cipher, nonce_prefix);
@@ -186,7 +190,7 @@ pub fn encrypt_file_streaming(
             let cipher = create_aes256gcmsiv_cipher(&key)?;
             let stream = match header.stream.as_ref() {
                 Some(s) => s,
-                None => return Err(EncFileError::Format("missing stream info".into())),
+                None => return Err(EncFileError::Invalid("missing stream info")),
             };
             let prefix = &stream.nonce_prefix;
             let mut counter = 0u32;
@@ -232,7 +236,8 @@ pub fn encrypt_file_streaming(
 
     writer.as_file_mut().flush()?;
     writer.as_file_mut().sync_all()?;
-    writer.persist(&out_path)
+    writer
+        .persist(&out_path)
         .map_err(|e| EncFileError::Io(e.error))?;
 
     // Zeroize derived key
