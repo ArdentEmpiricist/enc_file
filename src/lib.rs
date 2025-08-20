@@ -58,10 +58,10 @@ mod streaming;
 mod types;
 
 // External dependencies
+use secrecy::SecretString;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use secrecy::SecretString;
 
 // Re-export public types and constants
 pub use types::{
@@ -69,11 +69,12 @@ pub use types::{
 };
 
 // Re-export public functions
-
 // Core encryption/decryption API
 pub use armor::looks_armored;
 pub use file::default_decrypt_output_path;
-pub use hash::{hash_bytes, hash_bytes_keyed_blake3, hash_file, hash_file_keyed_blake3, to_hex_lower};
+pub use hash::{
+    hash_bytes, hash_bytes_keyed_blake3, hash_file, hash_file_keyed_blake3, to_hex_lower,
+};
 pub use keymap::{load_keymap, save_keymap};
 pub use streaming::{encrypt_file_streaming, validate_chunk_size_for_streaming};
 
@@ -106,7 +107,7 @@ pub fn encrypt_bytes(
     if opts.stream {
         return Err(EncFileError::Invalid("use streaming APIs for stream mode"));
     }
-    
+
     let salt = crypto::generate_salt()?;
     let key = kdf::derive_key_argon2id(&password, opts.kdf_params, &salt)?;
     let nonce = crypto::generate_nonce(opts.alg)?;
