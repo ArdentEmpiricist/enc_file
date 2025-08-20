@@ -151,7 +151,11 @@ pub fn encrypt_file_streaming(
     match opts.alg {
         AeadAlg::XChaCha20Poly1305 => {
             let cipher = create_xchacha20poly1305_cipher(&key)?;
-            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&header.stream.as_ref().unwrap().nonce_prefix);
+            let stream_info = match &header.stream {
+                Some(s) => s,
+                None => return Err(EncFileError::Format("Missing stream info".into())),
+            };
+            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
             let mut enc = EncryptorBE32::from_aead(cipher, nonce_prefix);
 
             loop {
