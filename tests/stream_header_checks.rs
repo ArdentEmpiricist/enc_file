@@ -65,7 +65,13 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
                         }
                     }
                     if !chunk_size_found {
-                        stream_map.push((cs_key, Value::Integer((new_chunk as u32).into())));
+                            *sv = Value::Integer(new_chunk.into());
+                            chunk_size_found = true;
+                            break;
+                        }
+                    }
+                    if !chunk_size_found {
+                        stream_map.push((cs_key, Value::Integer(new_chunk.into())));
                     }
                     stream_found = true;
                     break;
