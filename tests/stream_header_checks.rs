@@ -85,7 +85,7 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
             // Create new stream entry
             let stream_map = vec![(
                 Value::Text("chunk_size".to_string()),
-                Value::Integer((new_chunk as u32).into())
+                Value::Integer(new_chunk.into())
             )];
             top.push((stream_key, Value::Map(stream_map)));
         }
