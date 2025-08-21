@@ -163,7 +163,7 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
     let header_bytes = &input[4..4 + header_len];
     let body = &input[4 + header_len..];
 
-    let header: format::DiskHeader = ciborium::de::from_reader(&header_bytes[..])?;
+    let header: format::DiskHeader = ciborium::de::from_reader(header_bytes)?;
 
     // Validate header
     if header.magic != *format::MAGIC {
@@ -267,7 +267,7 @@ pub fn decrypt_file(
     if binary_data.len() < 4 {
         return Err(EncFileError::Malformed);
     }
-    
+
     let header_len = u32::from_le_bytes(binary_data[0..4].try_into().unwrap()) as usize;
     if binary_data.len() < 4 + header_len {
         return Err(EncFileError::Malformed);
@@ -275,7 +275,7 @@ pub fn decrypt_file(
 
     let header_buf = &binary_data[4..4 + header_len];
 
-    let header: format::DiskHeader = ciborium::de::from_reader(&header_buf[..])?;
+    let header: format::DiskHeader = ciborium::de::from_reader(header_buf)?;
 
     // Validate format version
     if header.version != format::VERSION {
@@ -303,12 +303,12 @@ pub fn decrypt_file(
     if let Some(stream_info) = &header.stream {
         // Streaming mode: use constant-memory streaming decryption
         streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
-        
+
         // For streaming, we need to create a cursor from the body data
         use std::io::Cursor;
         let mut reader = Cursor::new(body);
         let mut out_file = File::create(&out_path)?;
-        
+
         streaming::decrypt_stream_to_writer(
             &mut reader,
             &mut out_file,
@@ -318,30 +318,30 @@ pub fn decrypt_file(
         )?;
 
         out_file.sync_all()?;
-        
+
         // Zeroize derived key
         let mut key_z = key;
         crypto::zeroize_key(&mut key_z);
-        
+
         return Ok(out_path);
     } else {
         // Non-streaming mode: decrypt the body directly
-        
+
         // Body length must match `ct_len` from header
         if body.len() as u64 != header.ct_len {
             return Err(EncFileError::Malformed);
         }
-        
+
         let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, body)?;
         file::write_all_atomic(&out_path, &pt, false)?;
-        
+
         // Cheap hardening: wipe decrypted plaintext buffer after writing
         pt.zeroize();
-        
+
         // Zeroize derived key
         let mut key_z = key;
         crypto::zeroize_key(&mut key_z);
-        
+
         return Ok(out_path);
     }
 }

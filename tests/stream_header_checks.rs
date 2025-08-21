@@ -31,7 +31,7 @@ fn make_stream_ct(
 }
 
 fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    use ciborium::Value;
+    use ciborium::value::Value;
 
     // layout: [4 bytes LE header_len][header_bytes][ciphertext...]
     assert!(file_bytes.len() >= 4);
@@ -46,48 +46,35 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     let mut header_val: Value = ciborium::de::from_reader(&file_bytes[start..end]).unwrap();
 
     // header: Map(Value -> Value) with text keys like "stream", "chunk_size"
+    let mut stream_found = false;
     if let Value::Map(ref mut top) = header_val {
         let stream_key = Value::Text("stream".to_string());
+        let cs_key = Value::Text("chunk_size".to_string());
 
-        // Find or create "stream" entry
-        let mut stream_found = false;
+        // Find "stream" entry
         for (key, value) in top.iter_mut() {
             if *key == stream_key {
-                if let Value::Map(stream_map) = value {
-                    // Set/overwrite "chunk_size"
-                    let cs_key = Value::Text("chunk_size".to_string());
+                if let Value::Map(ref mut stream_map) = *value {
                     let mut chunk_size_found = false;
                     for (sk, sv) in stream_map.iter_mut() {
                         if *sk == cs_key {
-                            *sv = Value::Integer((new_chunk as u32).into());
-                            chunk_size_found = true;
-                            break;
-                        }
-                    }
-                    if !chunk_size_found {
                             *sv = Value::Integer(new_chunk.into());
                             chunk_size_found = true;
                             break;
                         }
                     }
                     if !chunk_size_found {
-                        stream_map.push((cs_key, Value::Integer(new_chunk.into())));
+                        stream_map.push((cs_key.clone(), Value::Integer(new_chunk.into())));
                     }
                     stream_found = true;
-                    break;
-                } else {
-                    panic!("header.stream is not a CBOR map");
                 }
+                break;
             }
         }
-        
+        // If "stream" not found, add it
         if !stream_found {
-            // Create new stream entry
-            let stream_map = vec![(
-                Value::Text("chunk_size".to_string()),
-                Value::Integer(new_chunk.into())
-            )];
-            top.push((stream_key, Value::Map(stream_map)));
+            let stream_map = vec![(cs_key.clone(), Value::Integer(new_chunk.into()))];
+            top.push((stream_key.clone(), Value::Map(stream_map)));
         }
     } else {
         panic!("header is not a CBOR map");
@@ -104,7 +91,8 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
 }
 
 fn msg_contains_any(msg: &str, needles: &[&str]) -> bool {
-    needles.iter().any(|s| msg.contains(s))
+    let msg_l = msg.to_lowercase();
+    needles.iter().any(|n| msg_l.contains(n))
 }
 
 #[test]
