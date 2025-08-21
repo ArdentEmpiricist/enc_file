@@ -123,7 +123,8 @@ pub fn encrypt_bytes(
         ciphertext.len() as u64,
     );
 
-    let header_bytes = serde_cbor::to_vec(&header)?;
+    let mut header_bytes = Vec::new();
+    ciborium::ser::into_writer(&header, &mut header_bytes)?;
     let mut out = Vec::new();
     out.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
     out.extend_from_slice(&header_bytes);
@@ -162,7 +163,7 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
     let header_bytes = &input[4..4 + header_len];
     let body = &input[4 + header_len..];
 
-    let header: format::DiskHeader = serde_cbor::from_slice(header_bytes)?;
+    let header: format::DiskHeader = ciborium::de::from_reader(&header_bytes[..])?;
 
     // Validate header
     if header.magic != *format::MAGIC {
@@ -274,7 +275,7 @@ pub fn decrypt_file(
 
     let header_buf = &binary_data[4..4 + header_len];
 
-    let header: format::DiskHeader = serde_cbor::from_slice(&header_buf)?;
+    let header: format::DiskHeader = ciborium::de::from_reader(&header_buf[..])?;
 
     // Validate format version
     if header.version != format::VERSION {

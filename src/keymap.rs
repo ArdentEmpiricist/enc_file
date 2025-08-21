@@ -24,7 +24,7 @@ pub fn load_keymap(path: &Path, password: SecretString) -> Result<KeyMap, EncFil
     let mut data = Vec::new();
     File::open(path)?.read_to_end(&mut data)?;
     let pt = crate::decrypt_bytes(&data, password)?;
-    let map: KeyMap = serde_cbor::from_slice(&pt)?;
+    let map: KeyMap = ciborium::de::from_reader(&pt[..])?;
     Ok(map)
 }
 
@@ -50,7 +50,8 @@ pub fn save_keymap(
     map: &KeyMap,
     opts: &EncryptOptions,
 ) -> Result<(), EncFileError> {
-    let pt = serde_cbor::to_vec(map)?;
+    let mut pt = Vec::new();
+    ciborium::ser::into_writer(map, &mut pt)?;
     let bytes = if opts.stream {
         return Err(EncFileError::Invalid("keymap: streaming not supported"));
     } else {

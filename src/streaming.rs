@@ -132,7 +132,8 @@ pub fn encrypt_file_streaming(
     };
 
     let header = DiskHeader::new_stream(opts.alg, opts.kdf, opts.kdf_params, salt, stream_info);
-    let header_bytes = serde_cbor::to_vec(&header)?;
+    let mut header_bytes = Vec::new();
+    ciborium::ser::into_writer(&header, &mut header_bytes)?;
 
     // Streaming: write header + encrypt input file chunk by chunk
     let tmp = NamedTempFile::new_in(
