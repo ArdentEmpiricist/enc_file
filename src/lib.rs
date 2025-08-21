@@ -244,9 +244,6 @@ pub fn decrypt_file(
     output: Option<&Path>,
     password: SecretString,
 ) -> Result<std::path::PathBuf, EncFileError> {
-    use std::io::BufReader;
-    
-    let mut file = File::open(input)?;
     let out_path = file::default_out_path_for_decrypt(input, output);
     if out_path.exists() {
         return Err(EncFileError::Invalid(
@@ -254,13 +251,28 @@ pub fn decrypt_file(
         ));
     }
 
-    // Parse header to determine if this is a streaming file
-    let mut header_len_buf = [0u8; 4];
-    file.read_exact(&mut header_len_buf)?;
-    let header_len = u32::from_le_bytes(header_len_buf) as usize;
+    // Read the entire file first to check if it's armored
+    let mut file_data = Vec::new();
+    File::open(input)?.read_to_end(&mut file_data)?;
 
-    let mut header_buf = vec![0u8; header_len];
-    file.read_exact(&mut header_buf)?;
+    // Check if the file is ASCII armored and decode if necessary
+    let binary_data = if armor::looks_armored(&file_data) {
+        armor::dearmor_decode(&file_data)?
+    } else {
+        file_data
+    };
+
+    // Now we have binary data, proceed with normal decryption logic
+    if binary_data.len() < 4 {
+        return Err(EncFileError::Malformed);
+    }
+    
+    let header_len = u32::from_le_bytes(binary_data[0..4].try_into().unwrap()) as usize;
+    if binary_data.len() < 4 + header_len {
+        return Err(EncFileError::Malformed);
+    }
+
+    let header_buf = &binary_data[4..4 + header_len];
 
     let header: format::DiskHeader = serde_cbor::from_slice(&header_buf)?;
 
@@ -285,12 +297,16 @@ pub fn decrypt_file(
     // Derive key
     let key = kdf::derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
 
+    let body = &binary_data[4 + header_len..];
+
     if let Some(stream_info) = &header.stream {
         // Streaming mode: use constant-memory streaming decryption
         streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
         
+        // For streaming, we need to create a cursor from the body data
+        use std::io::Cursor;
+        let mut reader = Cursor::new(body);
         let mut out_file = File::create(&out_path)?;
-        let mut reader = BufReader::new(file);
         
         streaming::decrypt_stream_to_writer(
             &mut reader,
@@ -308,16 +324,14 @@ pub fn decrypt_file(
         
         return Ok(out_path);
     } else {
-        // Non-streaming mode: read remaining data and decrypt
-        let mut remaining_data = Vec::new();
-        file.read_to_end(&mut remaining_data)?;
+        // Non-streaming mode: decrypt the body directly
         
         // Body length must match `ct_len` from header
-        if remaining_data.len() as u64 != header.ct_len {
+        if body.len() as u64 != header.ct_len {
             return Err(EncFileError::Malformed);
         }
         
-        let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, &remaining_data)?;
+        let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, body)?;
         file::write_all_atomic(&out_path, &pt, false)?;
         
         // Cheap hardening: wipe decrypted plaintext buffer after writing
