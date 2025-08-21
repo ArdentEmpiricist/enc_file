@@ -98,7 +98,9 @@ pub enum EncFileError {
     #[error("invalid argument: {0}")]
     Invalid(&'static str),
     #[error("serialization error")]
-    Serde(#[from] serde_cbor::Error),
+    Cbor(#[from] ciborium::de::Error<std::io::Error>),
+    #[error("serialization error")]  
+    CborSer(#[from] ciborium::ser::Error<std::io::Error>),
 }
 
 /// Supported hash algorithms for general purpose hashing.

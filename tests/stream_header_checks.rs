@@ -31,8 +31,7 @@ fn make_stream_ct(
 }
 
 fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    use serde_cbor::Value;
-    use std::collections::BTreeMap;
+    use ciborium::Value;
 
     // layout: [4 bytes LE header_len][header_bytes][ciphertext...]
     assert!(file_bytes.len() >= 4);
@@ -44,30 +43,53 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     let end = 4 + header_len;
 
     // Parse header as generic CBOR value
-    let mut header_val: Value = serde_cbor::from_slice(&file_bytes[start..end]).unwrap();
+    let mut header_val: Value = ciborium::de::from_reader(&file_bytes[start..end]).unwrap();
 
     // header: Map(Value -> Value) with text keys like "stream", "chunk_size"
     if let Value::Map(ref mut top) = header_val {
         let stream_key = Value::Text("stream".to_string());
 
-        // Ensure "stream" exists and is a map
-        let stream_val = top
-            .entry(stream_key)
-            .or_insert_with(|| Value::Map(BTreeMap::new()));
-
-        if let Value::Map(stream_map) = stream_val {
-            // Set/overwrite "chunk_size"
-            let cs_key = Value::Text("chunk_size".to_string());
-            stream_map.insert(cs_key, Value::Integer(i128::from(new_chunk)));
-        } else {
-            panic!("header.stream is not a CBOR map");
+        // Find or create "stream" entry
+        let mut stream_found = false;
+        for (key, value) in top.iter_mut() {
+            if *key == stream_key {
+                if let Value::Map(stream_map) = value {
+                    // Set/overwrite "chunk_size"
+                    let cs_key = Value::Text("chunk_size".to_string());
+                    let mut chunk_size_found = false;
+                    for (sk, sv) in stream_map.iter_mut() {
+                        if *sk == cs_key {
+                            *sv = Value::Integer((new_chunk as u32).into());
+                            chunk_size_found = true;
+                            break;
+                        }
+                    }
+                    if !chunk_size_found {
+                        stream_map.push((cs_key, Value::Integer((new_chunk as u32).into())));
+                    }
+                    stream_found = true;
+                    break;
+                } else {
+                    panic!("header.stream is not a CBOR map");
+                }
+            }
+        }
+        
+        if !stream_found {
+            // Create new stream entry
+            let stream_map = vec![(
+                Value::Text("chunk_size".to_string()),
+                Value::Integer((new_chunk as u32).into())
+            )];
+            top.push((stream_key, Value::Map(stream_map)));
         }
     } else {
         panic!("header is not a CBOR map");
     }
 
     // Re-encode header and rebuild the file
-    let new_header = serde_cbor::to_vec(&header_val).unwrap();
+    let mut new_header = Vec::new();
+    ciborium::ser::into_writer(&header_val, &mut new_header).unwrap();
     let mut rebuilt = Vec::with_capacity(4 + new_header.len() + (file_bytes.len() - end));
     rebuilt.extend_from_slice(&(new_header.len() as u32).to_le_bytes());
     rebuilt.extend_from_slice(&new_header);
