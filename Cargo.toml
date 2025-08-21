@@ -71,6 +71,9 @@ base64 = "0.22"
 # Hex CLI input
 hex = "0.4"
 
+# CPU detection for KDF parallelism defaults
+num_cpus = "1"
+
 [dev-dependencies]
 proptest = "1"
 assert_cmd = "2"

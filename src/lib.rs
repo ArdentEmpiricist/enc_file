@@ -62,6 +62,7 @@ use secrecy::SecretString;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use zeroize::Zeroize;
 
 // Re-export public types and constants
 pub use types::{
@@ -225,6 +226,8 @@ pub fn encrypt_file(
     let mut data = Vec::new();
     File::open(input)?.read_to_end(&mut data)?;
     let out_bytes = encrypt_bytes(&data, password, &opts)?;
+    // Zeroize input plaintext buffer after encryption
+    data.zeroize();
     let out_path = file::default_out_path(input, output, "enc");
     if out_path.exists() && !opts.force {
         return Err(EncFileError::Invalid(
@@ -241,19 +244,91 @@ pub fn decrypt_file(
     output: Option<&Path>,
     password: SecretString,
 ) -> Result<std::path::PathBuf, EncFileError> {
-    let mut data = Vec::new();
-    File::open(input)?.read_to_end(&mut data)?;
-    let mut pt = decrypt_bytes(&data, password)?;
+    use std::io::BufReader;
+    
+    let mut file = File::open(input)?;
     let out_path = file::default_out_path_for_decrypt(input, output);
     if out_path.exists() {
         return Err(EncFileError::Invalid(
-            "output exists; use --force (via CLI) to overwrite",
+            "output exists; use --force to overwrite",
         ));
     }
-    file::write_all_atomic(&out_path, &pt, false)?;
-    // Cheap hardening: wipe decrypted plaintext buffer after writing
-    file::secure_wipe_buffer(&mut pt);
-    Ok(out_path)
+
+    // Parse header to determine if this is a streaming file
+    let mut header_len_buf = [0u8; 4];
+    file.read_exact(&mut header_len_buf)?;
+    let header_len = u32::from_le_bytes(header_len_buf) as usize;
+
+    let mut header_buf = vec![0u8; header_len];
+    file.read_exact(&mut header_buf)?;
+
+    let header: format::DiskHeader = serde_cbor::from_slice(&header_buf)?;
+
+    // Validate format version
+    if header.version != format::VERSION {
+        return Err(EncFileError::UnsupportedVersion(header.version));
+    }
+
+    // Parse algorithms
+    let aead_alg = match header.aead_alg {
+        1 => types::AeadAlg::XChaCha20Poly1305,
+        2 => types::AeadAlg::Aes256GcmSiv,
+        o => return Err(EncFileError::UnsupportedAead(o)),
+    };
+
+    let kdf_alg = match header.kdf_alg {
+        1 => types::KdfAlg::Argon2id,
+        o => return Err(EncFileError::UnsupportedKdf(o)),
+    };
+    let _ = kdf_alg; // currently only Argon2id is supported
+
+    // Derive key
+    let key = kdf::derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
+
+    if let Some(stream_info) = &header.stream {
+        // Streaming mode: use constant-memory streaming decryption
+        streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
+        
+        let mut out_file = File::create(&out_path)?;
+        let mut reader = BufReader::new(file);
+        
+        streaming::decrypt_stream_to_writer(
+            &mut reader,
+            &mut out_file,
+            aead_alg,
+            &key,
+            stream_info,
+        )?;
+
+        out_file.sync_all()?;
+        
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+        
+        return Ok(out_path);
+    } else {
+        // Non-streaming mode: read remaining data and decrypt
+        let mut remaining_data = Vec::new();
+        file.read_to_end(&mut remaining_data)?;
+        
+        // Body length must match `ct_len` from header
+        if remaining_data.len() as u64 != header.ct_len {
+            return Err(EncFileError::Malformed);
+        }
+        
+        let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, &remaining_data)?;
+        file::write_all_atomic(&out_path, &pt, false)?;
+        
+        // Cheap hardening: wipe decrypted plaintext buffer after writing
+        pt.zeroize();
+        
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+        
+        return Ok(out_path);
+    }
 }
 
 /// Decrypt options for file operations.
