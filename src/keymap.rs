@@ -24,7 +24,7 @@ pub fn load_keymap(path: &Path, password: SecretString) -> Result<KeyMap, EncFil
     let mut data = Vec::new();
     File::open(path)?.read_to_end(&mut data)?;
     let pt = crate::decrypt_bytes(&data, password)?;
-    let map: KeyMap = ciborium::de::from_reader(&pt[..])?;
+    let map: KeyMap = ciborium::de::from_reader(pt.as_slice())?;
     Ok(map)
 }
 

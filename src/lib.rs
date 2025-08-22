@@ -323,7 +323,7 @@ pub fn decrypt_file(
         let mut key_z = key;
         crypto::zeroize_key(&mut key_z);
 
-        return Ok(out_path);
+        Ok(out_path)
     } else {
         // Non-streaming mode: decrypt the body directly
 
@@ -342,7 +342,7 @@ pub fn decrypt_file(
         let mut key_z = key;
         crypto::zeroize_key(&mut key_z);
 
-        return Ok(out_path);
+        Ok(out_path)
     }
 }
 

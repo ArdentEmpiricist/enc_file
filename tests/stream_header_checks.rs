@@ -64,7 +64,7 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
                         }
                     }
                     if !chunk_size_found {
-                        stream_map.push((cs_key.clone(), Value::Integer(new_chunk.into())));
+                        stream_map.push((cs_key, Value::Integer(new_chunk.into())));
                     }
                     stream_found = true;
                 }
@@ -73,8 +73,9 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
         }
         // If "stream" not found, add it
         if !stream_found {
-            let stream_map = vec![(cs_key.clone(), Value::Integer(new_chunk.into()))];
-            top.push((stream_key.clone(), Value::Map(stream_map)));
+            let cs_key = Value::Text("chunk_size".to_string());
+            let stream_map = vec![(cs_key, Value::Integer(new_chunk.into()))];
+            top.push((stream_key, Value::Map(stream_map)));
         }
     } else {
         panic!("header is not a CBOR map");
