@@ -105,7 +105,10 @@ pub fn encrypt_file_streaming(
     let salt = generate_salt()?;
     let key = derive_key_argon2id(&password, opts.kdf_params, &salt)?;
 
-    // Prepare stream info
+    // Prepare stream info with per-file unique ID
+    let mut file_id = vec![0u8; 16];
+    getrandom(&mut file_id).map_err(|_| EncFileError::Crypto)?;
+    
     let stream_info = match opts.alg {
         AeadAlg::XChaCha20Poly1305 => {
             let mut prefix = vec![0u8; 19];
@@ -113,6 +116,7 @@ pub fn encrypt_file_streaming(
             StreamInfo {
                 chunk_size: eff_chunk_size as u32,
                 nonce_prefix: prefix,
+                file_id: Some(file_id),
             }
         }
         AeadAlg::Aes256GcmSiv => {
@@ -122,12 +126,14 @@ pub fn encrypt_file_streaming(
             StreamInfo {
                 chunk_size: eff_chunk_size as u32,
                 nonce_prefix: prefix,
+                file_id: Some(file_id),
             }
         }
     };
 
     let header = DiskHeader::new_stream(opts.alg, opts.kdf, opts.kdf_params, salt, stream_info);
-    let header_bytes = serde_cbor::to_vec(&header)?;
+    let mut header_bytes = Vec::new();
+    ciborium::ser::into_writer(&header, &mut header_bytes)?;
 
     // Streaming: write header + encrypt input file chunk by chunk
     let tmp = NamedTempFile::new_in(
@@ -343,4 +349,132 @@ pub fn decrypt_stream_into_vec(
     }
 
     Ok(out)
+}
+
+/// Decrypt streaming data directly to a writer for constant memory usage.
+///
+/// This function reads streaming frames and decrypts them directly to the provided writer,
+/// maintaining constant memory usage regardless of the size of the encrypted data.
+pub fn decrypt_stream_to_writer<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    aead_alg: AeadAlg,
+    key: &[u8; 32],
+    stream_info: &StreamInfo,
+) -> Result<(), EncFileError> {
+    // Validate header-declared chunk size early, using unified policy
+    validate_header_chunk_size(stream_info.chunk_size as usize)?;
+
+    match aead_alg {
+        AeadAlg::XChaCha20Poly1305 => {
+            let cipher = create_xchacha20poly1305_cipher(key)?;
+            if stream_info.nonce_prefix.len() != 19 {
+                return Err(EncFileError::Malformed);
+            }
+            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
+            let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
+
+            loop {
+                // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
+                let mut frame_header = [0u8; 5];
+                reader.read_exact(&mut frame_header).map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                        EncFileError::Malformed
+                    } else {
+                        EncFileError::Io(e)
+                    }
+                })?;
+
+                let flags = frame_header[0];
+                let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+
+                let mut ct = vec![0u8; ct_len];
+                reader.read_exact(&mut ct).map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                        EncFileError::Malformed
+                    } else {
+                        EncFileError::Io(e)
+                    }
+                })?;
+
+                let is_final = (flags & FLAG_FINAL) != 0;
+
+                if is_final {
+                    let mut pt = dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    writer.write_all(&pt)?;
+
+                    // Zeroize the plaintext buffer after writing
+                    pt.zeroize();
+                    break;
+                } else {
+                    let mut pt = dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    writer.write_all(&pt)?;
+
+                    // Zeroize the plaintext buffer after writing
+                    pt.zeroize();
+                }
+            }
+        }
+
+        AeadAlg::Aes256GcmSiv => {
+            let cipher = create_aes256gcmsiv_cipher(key)?;
+            let prefix = &stream_info.nonce_prefix;
+
+            // Ensure AES-GCM-SIV nonce prefix is exactly 8 bytes
+            if prefix.len() != 8 {
+                return Err(EncFileError::Malformed);
+            }
+
+            let mut counter = 0u32;
+
+            loop {
+                // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
+                let mut frame_header = [0u8; 5];
+                reader.read_exact(&mut frame_header).map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                        EncFileError::Malformed
+                    } else {
+                        EncFileError::Io(e)
+                    }
+                })?;
+
+                let flags = frame_header[0];
+                let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+
+                let mut ct = vec![0u8; ct_len];
+                reader.read_exact(&mut ct).map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                        EncFileError::Malformed
+                    } else {
+                        EncFileError::Io(e)
+                    }
+                })?;
+
+                let is_final = (flags & FLAG_FINAL) != 0;
+
+                // Build nonce: 8-byte prefix + 4-byte counter
+                let mut nonce_bytes = Vec::with_capacity(12);
+                nonce_bytes.extend_from_slice(prefix);
+                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
+
+                let mut pt = cipher
+                    .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
+                    .map_err(|_| EncFileError::Crypto)?;
+
+                writer.write_all(&pt)?;
+
+                // Zeroize sensitive material
+                pt.zeroize();
+                nonce_bytes.zeroize();
+
+                counter = counter.wrapping_add(1);
+
+                if is_final {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }

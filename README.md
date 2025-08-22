@@ -1,8 +1,8 @@
 [![Crates.io](https://img.shields.io/crates/v/enc_file?label=Crates.io)](https://crates.io/crates/enc_file)
-[![Clippy](https://img.shields.io/github/actions/workflow/status/ArdentEmpiricist/enc_file/rust-clippy.yml?label=Rust%20Clippy)](https://github.com/LazyEmpiricist/enc_file)
+[![Clippy](https://img.shields.io/github/actions/workflow/status/ArdentEmpiricist/enc_file/rust-clippy.yml?label=Rust%20Clippy)](https://github.com/ArdentEmpiricist/enc_file)
 [![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
-[![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/ArdentEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
 
 # enc_file
@@ -274,7 +274,32 @@ All fallible APIs return `Result<_, EncFileError>`. Common cases:
 
 - `EncFileError::Io` I/O failures
 - `EncFileError::Crypto` AEAD failures (bad password, tamper)
-- `EncFileError::Format` header parsing/validation issues
+- `EncFileError::Malformed` header parsing/validation issues
+- `EncFileError::Invalid` invalid arguments or configuration
+
+---
+
+## KDF defaults and bounds
+
+This library uses **Argon2id** for password-based key derivation with hardened defaults:
+
+- **Time cost**: 3 iterations (minimum)
+- **Memory cost**: 64 MiB (minimum)  
+- **Parallelism**: min(4, number of CPU cores)
+
+These parameters are enforced at the library level. The CLI uses compliant defaults automatically.
+
+## Streaming and armor
+
+- **Streaming mode** provides constant memory usage for large files using chunked framing
+- **ASCII armor is ignored in streaming mode** - only non-streaming payloads can be armored
+- Maximum chunk size is `u32::MAX - 16` bytes due to 32-bit frame length + 16-byte AEAD tag
+
+## Compatibility policy
+
+This library maintains backward compatibility for reading encrypted files across versions.
+**Backward-compatible format extensions** (optional header fields) may be added between minor releases.
+Existing files remain decryptable by newer versions.
 
 ---
 

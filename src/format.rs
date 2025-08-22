@@ -18,6 +18,10 @@ pub struct StreamInfo {
     /// - XChaCha20-Poly1305: 19 bytes (used with EncryptorBE32/DecryptorBE32)
     /// - AES-256-GCM-SIV:    8 bytes (we append a 32-bit big-endian counter)
     pub nonce_prefix: Vec<u8>,
+    /// Optional per-file unique identifier (16 bytes when present).
+    /// Backward-compatible field for future domain separation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<Vec<u8>>,
     // For AES-GCM-SIV we increment a 32-bit counter per chunk to build unique nonces.
     // For XChaCha20-Poly1305 the streaming helper manages the counter internally.
 }
