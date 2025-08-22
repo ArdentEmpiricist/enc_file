@@ -400,20 +400,18 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 if is_final {
-                    let pt = dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    let mut pt = dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?;
                     writer.write_all(&pt)?;
 
                     // Zeroize the plaintext buffer after writing
-                    let mut pt_copy = pt;
-                    pt_copy.zeroize();
+                    pt.zeroize();
                     break;
                 } else {
-                    let pt = dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    let mut pt = dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?;
                     writer.write_all(&pt)?;
 
                     // Zeroize the plaintext buffer after writing
-                    let mut pt_copy = pt;
-                    pt_copy.zeroize();
+                    pt.zeroize();
                 }
             }
         }
@@ -459,15 +457,14 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 nonce_bytes.extend_from_slice(prefix);
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
 
-                let pt = cipher
+                let mut pt = cipher
                     .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
                     .map_err(|_| EncFileError::Crypto)?;
 
                 writer.write_all(&pt)?;
 
                 // Zeroize sensitive material
-                let mut pt_copy = pt;
-                pt_copy.zeroize();
+                pt.zeroize();
                 nonce_bytes.zeroize();
 
                 counter = counter.wrapping_add(1);
