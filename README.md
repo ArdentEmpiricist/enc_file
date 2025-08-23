@@ -297,7 +297,7 @@ These parameters are enforced at the library level. The CLI uses compliant defau
 
 ## Compatibility policy
 
-This library maintains backward compatibility for reading encrypted files across versions.
+This library maintains backward compatibility for reading encrypted files across versions (beginning from 0.5).
 **Backward-compatible format extensions** (optional header fields) may be added between minor releases.
 Existing files remain decryptable by newer versions.
 
