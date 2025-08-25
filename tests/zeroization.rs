@@ -46,3 +46,55 @@ fn encrypt_decrypt_operations_work_correctly() {
     // Verify correctness
     assert_eq!(decrypted, plaintext);
 }
+
+/// Test that streaming operations work correctly with our zeroization improvements.
+#[test]
+fn streaming_operations_work_correctly() {
+    use enc_file::{encrypt_file_streaming, decrypt_file, EncryptOptions, AeadAlg};
+    use std::fs;
+    use tempfile::NamedTempFile;
+    
+    let password = SecretString::new("streaming_password".into());
+    let opts = EncryptOptions {
+        stream: true,
+        chunk_size: 1024, // Small chunks for testing
+        alg: AeadAlg::XChaCha20Poly1305,
+        force: true, // Allow overwriting for test
+        ..Default::default()
+    };
+    
+    // Create test data
+    let input_file = NamedTempFile::new().unwrap();
+    let test_data = b"This is streaming test data that should be processed in chunks and properly zeroized.";
+    fs::write(input_file.path(), test_data).unwrap();
+    
+    // Create explicit output paths to avoid conflicts
+    let encrypted_file = NamedTempFile::new().unwrap();
+    let decrypted_file = NamedTempFile::new().unwrap();
+    
+    // Remove the decrypted file so it doesn't exist when we try to write to it
+    let decrypted_path = decrypted_file.path().to_path_buf();
+    drop(decrypted_file); // This removes the file
+    
+    // Encrypt using streaming
+    let encrypted_path = encrypt_file_streaming(
+        input_file.path(),
+        Some(encrypted_file.path()),
+        password.clone(),
+        opts
+    ).unwrap();
+    
+    // Decrypt the file  
+    let final_decrypted_path = decrypt_file(
+        &encrypted_path,
+        Some(&decrypted_path),
+        password
+    ).unwrap();
+    
+    // Verify the content is correct
+    let decrypted_data = fs::read(&final_decrypted_path).unwrap();
+    assert_eq!(decrypted_data, test_data);
+    
+    // Clean up
+    fs::remove_file(&final_decrypted_path).ok();
+}
