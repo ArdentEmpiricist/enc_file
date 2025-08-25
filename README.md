@@ -268,14 +268,22 @@ assert_eq!(loaded, km);
 
 ---
 
-## Error handling
+## Error Handling
 
-All fallible APIs return `Result<_, EncFileError>`. Common cases:
+All fallible APIs return `Result<_, EncFileError>`. The error type is trait-based (`thiserror::Error`) and covers all expected failures without panics.
 
-- `EncFileError::Io` I/O failures
-- `EncFileError::Crypto` AEAD failures (bad password, tamper)
-- `EncFileError::Malformed` header parsing/validation issues
-- `EncFileError::Invalid` invalid arguments or configuration
+**Error variants:**
+
+- `Io(std::io::Error)`: I/O failures (file read/write issues)
+- `Crypto`: AEAD encryption/decryption failures (bad password, tampering)
+- `UnsupportedVersion(u16)`: File format version not supported
+- `UnsupportedAead(u8)`: AEAD algorithm ID not supported
+- `UnsupportedKdf(u8)`: Password KDF algorithm ID not supported
+- `Malformed`: Corrupt or invalid file structure
+- `Invalid(&'static str)`: Invalid argument or operation (e.g. using streaming with keymap)
+- `Serde(serde_cbor::Error)`: Serialization errors (CBOR encoding/decoding)
+
+All errors are returned as `Err(EncFileError)`; they never panic for expected failures. See library and CLI tests for examples of error handling.
 
 ---
 
