@@ -113,7 +113,7 @@ fn dec_rejects_zero_chunk_size_in_header_for_both_algs() {
             Err(EncFileError::Invalid(msg)) => {
                 // Accept multiple valid phrasings from different implementations
                 let ok = msg_contains_any(
-                    &msg,
+                    msg,
                     &[
                         "chunk_size",     // underscore form
                         "chunk size",     // space form
@@ -149,7 +149,7 @@ fn dec_rejects_too_large_chunk_size_in_header_for_both_algs() {
             Err(EncFileError::Invalid(msg)) => {
                 // Accept both underscore/space and explicit 32-bit framing hints
                 let ok = msg_contains_any(
-                    &msg,
+                    msg,
                     &[
                         "chunk_size",           // underscore form
                         "chunk size",           // space form

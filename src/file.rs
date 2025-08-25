@@ -6,7 +6,6 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-use zeroize::Zeroize;
 
 /// Atomically write data to a file using a temporary file.
 ///
@@ -100,7 +99,9 @@ pub fn persist_tempfile_atomic(
     }
 
     // Atomically move the temp file to the final location.
-    tmp_path.persist(out).map_err(|e| EncFileError::Io(e.error))?;
+    tmp_path
+        .persist(out)
+        .map_err(|e| EncFileError::Io(e.error))?;
     Ok(out.to_path_buf())
 }
 
@@ -125,9 +126,4 @@ pub fn default_decrypt_output_path(in_path: &Path) -> PathBuf {
     let mut os = file_name.to_os_string();
     os.push(".dec");
     parent.join(os)
-}
-
-/// Securely wipe a plaintext buffer after writing to disk.
-pub fn secure_wipe_buffer(buffer: &mut Vec<u8>) {
-    buffer.zeroize();
 }

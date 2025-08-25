@@ -10,11 +10,6 @@ fn write_blob(path: &PathBuf, len: usize) {
     fs::write(path, &data).unwrap();
 }
 
-// Helper: Read all bytes from a file
-fn slurp(path: &PathBuf) -> Vec<u8> {
-    fs::read(path).unwrap()
-}
-
 // Default password for tests
 fn test_pw() -> SecretString {
     SecretString::new("pw".into())
