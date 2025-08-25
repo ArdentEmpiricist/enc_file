@@ -82,12 +82,12 @@ fn common_opts(
         armor,
         ..Default::default()
     };
-    // Speed up tests: use lightweight Argon2id parameters
+    // Speed up tests: use lightweight Argon2id parameters that meet hardened minima
     o.kdf = KdfAlg::Argon2id;
     o.kdf_params = KdfParams {
-        t_cost: 1,
-        mem_kib: 4 * 1024,
-        parallelism: 1,
+        t_cost: 3,           // Minimum hardened time cost
+        mem_kib: 64 * 1024,  // Minimum hardened memory cost (64 MiB)
+        parallelism: 1,      // Keep minimal for tests
     };
     o.stream = stream;
     if let Some(cs) = chunk_size {
@@ -286,9 +286,9 @@ fn smoke_payload_only_covering_algorithms_and_armor() {
                 stream: false, // <- important: encrypt_bytes rejects stream=true
                 kdf: enc_file::KdfAlg::Argon2id,
                 kdf_params: enc_file::KdfParams {
-                    t_cost: 1,
-                    mem_kib: 4 * 1024,
-                    parallelism: 1,
+                    t_cost: 3,           // Minimum hardened time cost
+                    mem_kib: 64 * 1024,  // Minimum hardened memory cost (64 MiB)
+                    parallelism: 1,      // Keep minimal for tests
                 },
                 force: true,
                 ..enc_file::EncryptOptions::default()
@@ -339,9 +339,9 @@ fn smoke_payload_only_covering_algorithms_and_armor() {
                 chunk_size: 1024, // smaller chunk for speed
                 kdf: enc_file::KdfAlg::Argon2id,
                 kdf_params: enc_file::KdfParams {
-                    t_cost: 1,
-                    mem_kib: 4 * 1024,
-                    parallelism: 1,
+                    t_cost: 3,           // Minimum hardened time cost
+                    mem_kib: 64 * 1024,  // Minimum hardened memory cost (64 MiB)
+                    parallelism: 1,      // Keep minimal for tests
                 },
                 force: true,
                 // Add any other fields from the default explicitly if needed

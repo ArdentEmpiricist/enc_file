@@ -59,6 +59,7 @@ use enc_file::{
 use getrandom::fill as getrandom;
 use hex::decode as hex_decode;
 use secrecy::SecretString;
+use zeroize::Zeroize;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -262,8 +263,12 @@ fn read_password(password_file: &Option<PathBuf>, prompt: &str) -> Result<Secret
     if let Some(path) = password_file {
         let mut s = String::new();
         fs::File::open(path)?.read_to_string(&mut s)?;
-        let s = s.trim_end_matches(&['\r', '\n'][..]).to_owned();
-        Ok(SecretString::new(s.into_boxed_str()))
+        // Zeroize the original string after extracting the password
+        let secret = SecretString::new(
+            s.trim_end_matches(&['\r', '\n'][..]).to_owned().into_boxed_str()
+        );
+        s.zeroize();
+        Ok(secret)
     } else {
         let pw = rpassword::prompt_password(prompt)?;
         Ok(SecretString::new(pw.into_boxed_str()))
