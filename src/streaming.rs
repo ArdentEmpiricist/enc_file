@@ -288,12 +288,16 @@ pub fn decrypt_stream_into_vec(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 if is_final {
-                    let pt = dec.decrypt_last(ct).map_err(|_| EncFileError::Crypto)?;
+                    let mut pt = dec.decrypt_last(ct).map_err(|_| EncFileError::Crypto)?;
                     out.extend_from_slice(&pt);
+                    // Zeroize temporary plaintext buffer
+                    pt.zeroize();
                     break;
                 } else {
-                    let pt = dec.decrypt_next(ct).map_err(|_| EncFileError::Crypto)?;
+                    let mut pt = dec.decrypt_next(ct).map_err(|_| EncFileError::Crypto)?;
                     out.extend_from_slice(&pt);
+                    // Zeroize temporary plaintext buffer
+                    pt.zeroize();
                 }
             }
         }
@@ -333,12 +337,13 @@ pub fn decrypt_stream_into_vec(
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
                 counter = counter.wrapping_add(1);
 
-                let pt = cipher
+                let mut pt = cipher
                     .decrypt(GenericArray::from_slice(&nonce_bytes), ct)
                     .map_err(|_| EncFileError::Crypto)?;
                 out.extend_from_slice(&pt);
 
-                // Optional hardening (cheap): wipe nonce bytes
+                // Zeroize sensitive material
+                pt.zeroize();
                 nonce_bytes.zeroize();
 
                 if is_final {
