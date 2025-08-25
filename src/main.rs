@@ -269,7 +269,7 @@ fn read_password(password_file: &Option<PathBuf>, prompt: &str) -> Result<Secret
         }
 
         let secret = SecretString::new(s.into_boxed_str());
-        // Note: s has been moved into SecretString, no need to zeroize here
+        // SecretString handles zeroization of its contents internally, so manual zeroization of `s` is not necessary.
         Ok(secret)
     } else {
         let pw = rpassword::prompt_password(prompt)?;
