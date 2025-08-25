@@ -5,7 +5,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 
-use enc_file::{decrypt_file, encrypt_file, AeadAlg};
+use enc_file::{AeadAlg, decrypt_file, encrypt_file};
 use secrecy::SecretString;
 use tempfile::tempdir;
 
@@ -141,9 +141,6 @@ fn streaming_mid_body_tamper_fails_both_algs() {
         fs::write(&enc, &ct).unwrap();
 
         let err = decrypt_file(&enc, Some(&back), pw).unwrap_err();
-        assert!(
-            matches!(err, enc_file::EncFileError::Crypto),
-            "alg={alg:?}"
-        );
+        assert!(matches!(err, enc_file::EncFileError::Crypto), "alg={alg:?}");
     }
 }
