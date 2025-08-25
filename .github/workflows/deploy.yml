@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@8410ad4602e4e96c55d6f3fa122c21dd44ea8f17 # v4
 
       - name: Get the release version from the tag
         shell: bash
@@ -43,14 +43,14 @@ jobs:
 
       - name: Install Rust
         # Or @nightly if you want
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350758bdb73 # stable
         # Arguments to pass in
         with:
           # Make Rust compile to our target (defined in the matrix)
           targets: ${{ matrix.target }}
 
       - name: Build
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1
         with:
           use-cross: true
           command: build
@@ -79,7 +79,7 @@ jobs:
           fi
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2
         with:
           files: |
             ${{ env.ASSET }}

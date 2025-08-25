@@ -17,7 +17,7 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@8410ad4602e4e96c55d6f3fa122c21dd44ea8f17 # v4
       
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350758bdb73 # stable
