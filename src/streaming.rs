@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 /// Frame flags for streaming format.
 const FLAG_FINAL: u8 = 1;
@@ -108,7 +108,7 @@ pub fn encrypt_file_streaming(
     // Prepare stream info with per-file unique ID
     let mut file_id = vec![0u8; 16];
     getrandom(&mut file_id).map_err(|_| EncFileError::Crypto)?;
-    
+
     let stream_info = match opts.alg {
         AeadAlg::XChaCha20Poly1305 => {
             let mut prefix = vec![0u8; 19];
@@ -405,14 +405,16 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 if is_final {
-                    let pt = Zeroizing::new(dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?);
+                    let pt =
+                        Zeroizing::new(dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
                     // (no explicit zeroize needed)
                     break;
                 } else {
-                    let pt = Zeroizing::new(dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?);
+                    let pt =
+                        Zeroizing::new(dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
@@ -465,7 +467,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let mut pt = Zeroizing::new(
                     cipher
                         .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
-                        .map_err(|_| EncFileError::Crypto)?
+                        .map_err(|_| EncFileError::Crypto)?,
                 );
 
                 writer.write_all(&pt)?;
