@@ -405,18 +405,18 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 if is_final {
-                    let mut pt = dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    let pt = Zeroizing::new(dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
-                    // Zeroize the plaintext buffer after writing
-                    pt.zeroize();
+                    // Plaintext buffer will be zeroized automatically on drop
+                    // (no explicit zeroize needed)
                     break;
                 } else {
-                    let mut pt = dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?;
+                    let pt = Zeroizing::new(dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
-                    // Zeroize the plaintext buffer after writing
-                    pt.zeroize();
+                    // Plaintext buffer will be zeroized automatically on drop
+                    // (no explicit zeroize needed)
                 }
             }
         }
