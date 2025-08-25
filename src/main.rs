@@ -262,12 +262,12 @@ fn read_password(password_file: &Option<PathBuf>, prompt: &str) -> Result<Secret
     if let Some(path) = password_file {
         let mut s = String::new();
         fs::File::open(path)?.read_to_string(&mut s)?;
-        
+
         // Remove trailing newlines in-place to avoid creating intermediate copies
         while s.ends_with('\n') || s.ends_with('\r') {
             s.pop();
         }
-        
+
         let secret = SecretString::new(s.into_boxed_str());
         // Note: s has been moved into SecretString, no need to zeroize here
         Ok(secret)
