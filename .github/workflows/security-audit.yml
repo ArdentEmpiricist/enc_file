@@ -17,10 +17,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@8410ad4602e4e96c55d6f3fa122c21dd44ea8f17 # v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       
     - name: Setup Rust
-      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350758bdb73 # stable
+      uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
       
     - name: Install cargo-audit
       run: cargo install cargo-audit

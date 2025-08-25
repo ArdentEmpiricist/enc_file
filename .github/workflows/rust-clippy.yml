@@ -28,10 +28,10 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad4602e4e96c55d6f3fa122c21dd44ea8f17 # v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@16499bfc88cba049068760c1cc30a357c8640f58 # v1
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
           toolchain: stable
@@ -49,7 +49,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@aa578102511db9f11421982d6a2ca2e33d17485b # v3
+        uses: github/codeql-action/upload-sarif@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
         with:
           sarif_file: rust-clippy-results.sarif
           wait-for-processing: true
