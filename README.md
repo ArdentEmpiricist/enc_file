@@ -59,7 +59,7 @@ Add to a project as a library:
 ```toml
 # Cargo.toml
 [dependencies]
-enc_file = "0.5.13"
+enc_file = "0.5.14"
 ```
 
 ---
@@ -268,7 +268,7 @@ assert_eq!(loaded, km);
 
 ---
 
-## Error Handling
+## Error handling
 
 All fallible APIs return `Result<_, EncFileError>`. The error type is trait-based (`thiserror::Error`) and covers all expected failures without panics.
 
@@ -280,10 +280,11 @@ All fallible APIs return `Result<_, EncFileError>`. The error type is trait-base
 - `UnsupportedAead(u8)`: AEAD algorithm ID not supported
 - `UnsupportedKdf(u8)`: Password KDF algorithm ID not supported
 - `Malformed`: Corrupt or invalid file structure
-- `Invalid(&'static str)`: Invalid argument or operation (e.g. using streaming with keymap)
+- `Invalid(&'static str)`: Invalid argument or operation (e.g. streaming with keymap)
 - `Serde(serde_cbor::Error)`: Serialization errors (CBOR encoding/decoding)
 
-All errors are returned as `Err(EncFileError)`; they never panic for expected failures. See library and CLI tests for examples of error handling.
+All errors are returned as `Err(EncFileError)`; they never panic for expected failures.  
+See library and CLI tests for examples of error handling.
 
 ---
 
