@@ -346,7 +346,7 @@ fn cmd_key(k: KeyCmd) -> Result<()> {
             if map.contains_key(&args.name) {
                 anyhow::bail!("key '{}' already exists", args.name);
             }
-            let mut key = if args.random {
+            let key = if args.random {
                 let mut k = vec![0u8; 32];
                 getrandom(&mut k).map_err(|e| anyhow::anyhow!(e))?;
                 k
@@ -359,10 +359,7 @@ fn cmd_key(k: KeyCmd) -> Result<()> {
             } else {
                 anyhow::bail!("specify --random or --from-hex")
             };
-            map.insert(args.name.clone(), key.clone());
-            
-            // Zeroize the key after storing in map
-            key.zeroize();
+            map.insert(args.name.clone(), key);
             let opts = EncryptOptions {
                 armor: args.armor,
                 ..Default::default()
