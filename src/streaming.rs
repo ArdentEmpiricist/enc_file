@@ -464,7 +464,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 nonce_bytes.extend_from_slice(prefix);
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
 
-                let mut pt = Zeroizing::new(
+                let pt = Zeroizing::new(
                     cipher
                         .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
                         .map_err(|_| EncFileError::Crypto)?,
