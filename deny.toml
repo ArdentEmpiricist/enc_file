@@ -29,7 +29,22 @@ multiple-versions = "warn"
 # Lint level for when a crate version requirement is `*`
 wildcards = "warn"
 # Skip certain crates when checking for duplicates
-skip = []
+skip = [
+    # These crates have legitimate reasons for having multiple versions
+    { name = "getrandom", version = "*" },
+    { name = "wasi", version = "*" },
+    # Windows-specific crates often have version conflicts due to ecosystem evolution
+    { name = "windows-sys", version = "*" },
+    { name = "windows-targets", version = "*" },
+    { name = "windows_aarch64_gnullvm", version = "*" },
+    { name = "windows_aarch64_msvc", version = "*" },
+    { name = "windows_i686_gnu", version = "*" },
+    { name = "windows_i686_gnullvm", version = "*" },
+    { name = "windows_i686_msvc", version = "*" },
+    { name = "windows_x86_64_gnu", version = "*" },
+    { name = "windows_x86_64_gnullvm", version = "*" },
+    { name = "windows_x86_64_msvc", version = "*" },
+]
 # Explicitly denied crates
 deny = []
 
