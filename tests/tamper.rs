@@ -1,4 +1,4 @@
-use enc_file::{decrypt_bytes, encrypt_bytes, AeadAlg, EncFileError, EncryptOptions};
+use enc_file::{AeadAlg, EncFileError, EncryptOptions, decrypt_bytes, encrypt_bytes};
 use secrecy::SecretString;
 
 /// Flip one byte in the ciphertext body and expect Auth failure.

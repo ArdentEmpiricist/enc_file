@@ -99,7 +99,7 @@ pub enum EncFileError {
     Invalid(&'static str),
     #[error("serialization error")]
     Cbor(#[from] ciborium::de::Error<std::io::Error>),
-    #[error("serialization error")]  
+    #[error("serialization error")]
     CborSer(#[from] ciborium::ser::Error<std::io::Error>),
 }
 
