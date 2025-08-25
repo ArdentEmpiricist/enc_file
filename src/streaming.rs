@@ -460,9 +460,12 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 // Build nonce: 8-byte prefix + 4-byte counter
-                let mut nonce_bytes = Zeroizing::new(Vec::with_capacity(12));
-                nonce_bytes.extend_from_slice(prefix);
-                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
+                let nonce_bytes = Zeroizing::new({
+                    let mut bytes = Vec::with_capacity(12);
+                    bytes.extend_from_slice(prefix);
+                    bytes.extend_from_slice(&counter.to_be_bytes());
+                    bytes
+                });
 
                 let pt = Zeroizing::new(
                     cipher

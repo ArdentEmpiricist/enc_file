@@ -263,13 +263,14 @@ fn read_password(password_file: &Option<PathBuf>, prompt: &str) -> Result<Secret
         let mut s = String::new();
         fs::File::open(path)?.read_to_string(&mut s)?;
 
-        // Remove trailing newlines in-place to avoid creating intermediate copies
-        while s.ends_with('\n') || s.ends_with('\r') {
-            s.pop();
-        }
-
-        let secret = SecretString::new(s.into_boxed_str());
-        // SecretString handles zeroization of its contents internally, so manual zeroization of `s` is not necessary.
+        // Create SecretString directly from trimmed slice to avoid intermediate copies
+        let secret = SecretString::new(
+            s.trim_end_matches(&['\r', '\n'][..]).to_owned().into_boxed_str()
+        );
+        
+        // Zero the original string that contained the password
+        use zeroize::Zeroize;
+        s.zeroize();
         Ok(secret)
     } else {
         let pw = rpassword::prompt_password(prompt)?;
