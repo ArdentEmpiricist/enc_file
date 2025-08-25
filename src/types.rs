@@ -37,7 +37,7 @@ impl Default for KdfParams {
         Self {
             t_cost: 3,
             mem_kib: 64 * 1024,
-            parallelism: std::cmp::min(4, num_cpus::get() as u32),
+            parallelism: std::cmp::min(4, std::cmp::max(1, num_cpus::get() as u32)),
         }
     }
 }
