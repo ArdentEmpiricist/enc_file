@@ -43,7 +43,7 @@ jobs:
 
       - name: Install Rust
         # Or @nightly if you want
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        uses: dtolnay/rust-toolchain@stable
         # Arguments to pass in
         with:
           # Make Rust compile to our target (defined in the matrix)
