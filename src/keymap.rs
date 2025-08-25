@@ -6,6 +6,7 @@ use secrecy::SecretString;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use zeroize::Zeroize;
 
 /// Load an encrypted key map from disk using a password.
 ///
@@ -23,8 +24,12 @@ use std::path::Path;
 pub fn load_keymap(path: &Path, password: SecretString) -> Result<KeyMap, EncFileError> {
     let mut data = Vec::new();
     File::open(path)?.read_to_end(&mut data)?;
-    let pt = crate::decrypt_bytes(&data, password)?;
+    let mut pt = crate::decrypt_bytes(&data, password)?;
     let map: KeyMap = ciborium::de::from_reader(pt.as_slice())?;
+    
+    // Zeroize the plaintext keymap data after deserialization
+    pt.zeroize();
+    
     Ok(map)
 }
 
@@ -57,6 +62,10 @@ pub fn save_keymap(
     } else {
         crate::encrypt_bytes(&pt, password, opts)?
     };
+    
+    // Zeroize the plaintext serialized keymap data after encryption
+    pt.zeroize();
+    
     write_all_atomic(path, &bytes, true)?;
     Ok(())
 }

@@ -59,6 +59,7 @@ use enc_file::{
 use getrandom::fill as getrandom;
 use hex::decode as hex_decode;
 use secrecy::SecretString;
+use zeroize::Zeroize;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -262,8 +263,12 @@ fn read_password(password_file: &Option<PathBuf>, prompt: &str) -> Result<Secret
     if let Some(path) = password_file {
         let mut s = String::new();
         fs::File::open(path)?.read_to_string(&mut s)?;
-        let s = s.trim_end_matches(&['\r', '\n'][..]).to_owned();
-        Ok(SecretString::new(s.into_boxed_str()))
+        let trimmed = s.trim_end_matches(&['\r', '\n'][..]).to_owned();
+        
+        // Zeroize the original string after extracting the password
+        s.zeroize();
+        
+        Ok(SecretString::new(trimmed.into_boxed_str()))
     } else {
         let pw = rpassword::prompt_password(prompt)?;
         Ok(SecretString::new(pw.into_boxed_str()))
@@ -341,7 +346,7 @@ fn cmd_key(k: KeyCmd) -> Result<()> {
             if map.contains_key(&args.name) {
                 anyhow::bail!("key '{}' already exists", args.name);
             }
-            let key = if args.random {
+            let mut key = if args.random {
                 let mut k = vec![0u8; 32];
                 getrandom(&mut k).map_err(|e| anyhow::anyhow!(e))?;
                 k
@@ -354,7 +359,10 @@ fn cmd_key(k: KeyCmd) -> Result<()> {
             } else {
                 anyhow::bail!("specify --random or --from-hex")
             };
-            map.insert(args.name.clone(), key);
+            map.insert(args.name.clone(), key.clone());
+            
+            // Zeroize the key after storing in map
+            key.zeroize();
             let opts = EncryptOptions {
                 armor: args.armor,
                 ..Default::default()
