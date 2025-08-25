@@ -458,20 +458,18 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 // Build nonce: 8-byte prefix + 4-byte counter
-                let mut nonce_bytes = Vec::with_capacity(12);
+                let mut nonce_bytes = Zeroizing::new(Vec::with_capacity(12));
                 nonce_bytes.extend_from_slice(prefix);
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
 
-                let mut pt = cipher
-                    .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
-                    .map_err(|_| EncFileError::Crypto)?;
+                let mut pt = Zeroizing::new(
+                    cipher
+                        .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
+                        .map_err(|_| EncFileError::Crypto)?
+                );
 
                 writer.write_all(&pt)?;
-
-                // Zeroize sensitive material
-                pt.zeroize();
-                nonce_bytes.zeroize();
-
+                // Sensitive material is zeroized automatically by Zeroizing
                 counter = counter.wrapping_add(1);
 
                 if is_final {
