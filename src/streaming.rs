@@ -246,7 +246,10 @@ pub fn encrypt_file_streaming(
 }
 
 /// Decrypt streaming data into a Vec<u8>.
+/// Returns (flags, ct_len, remaining_body) or error if malformed.
 ///
+/// This function validates the frame structure and ensures that `ct_len` does not exceed the available body data.
+/// This is a critical security check to prevent buffer overflows and other vulnerabilities.
 /// This function reads streaming frames and decrypts them into a continuous buffer.
 pub fn decrypt_stream_into_vec(
     alg: AeadAlg,
