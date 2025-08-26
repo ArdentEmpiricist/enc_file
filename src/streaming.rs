@@ -245,6 +245,42 @@ pub fn encrypt_file_streaming(
     Ok(out_path)
 }
 
+/// Parse a frame header from a slice: [u8 flags][u32 ct_len_be]
+/// Returns (flags, ct_len, remaining_body) or error if malformed.
+fn parse_frame_from_slice(body: &[u8]) -> Result<(u8, usize, &[u8]), EncFileError> {
+    if body.len() < 5 {
+        return Err(EncFileError::Malformed);
+    }
+    
+    let flags = body[0];
+    let ct_len = u32::from_be_bytes(body[1..5].try_into().unwrap()) as usize;
+    let remaining = &body[5..];
+    
+    if remaining.len() < ct_len {
+        return Err(EncFileError::Malformed);
+    }
+    
+    Ok((flags, ct_len, remaining))
+}
+
+/// Parse a frame header from a reader: [u8 flags][u32 ct_len_be]
+/// Returns (flags, ct_len) or error if malformed.
+fn parse_frame_from_reader<R: Read>(reader: &mut R) -> Result<(u8, usize), EncFileError> {
+    let mut frame_header = [0u8; 5];
+    reader.read_exact(&mut frame_header).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::UnexpectedEof {
+            EncFileError::Malformed
+        } else {
+            EncFileError::Io(e)
+        }
+    })?;
+    
+    let flags = frame_header[0];
+    let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+    
+    Ok((flags, ct_len))
+}
+
 /// Decrypt streaming data into a Vec<u8>.
 /// Returns (flags, ct_len, remaining_body) or error if malformed.
 ///
@@ -273,20 +309,10 @@ pub fn decrypt_stream_into_vec(
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                if body.len() < 5 {
-                    return Err(EncFileError::Malformed);
-                }
-
-                let flags = body[0];
-                let ct_len = u32::from_be_bytes(body[1..5].try_into().unwrap()) as usize;
-                body = &body[5..];
-
-                if body.len() < ct_len {
-                    return Err(EncFileError::Malformed);
-                }
-
-                let ct = &body[..ct_len];
-                body = &body[ct_len..];
+                let (flags, ct_len, remaining_body) = parse_frame_from_slice(body)?;
+                
+                let ct = &remaining_body[..ct_len];
+                body = &remaining_body[ct_len..];
 
                 let is_final = (flags & FLAG_FINAL) != 0;
 
@@ -318,20 +344,10 @@ pub fn decrypt_stream_into_vec(
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                if body.len() < 5 {
-                    return Err(EncFileError::Malformed);
-                }
-
-                let flags = body[0];
-                let ct_len = u32::from_be_bytes(body[1..5].try_into().unwrap()) as usize;
-                body = &body[5..];
-
-                if body.len() < ct_len {
-                    return Err(EncFileError::Malformed);
-                }
-
-                let ct = &body[..ct_len];
-                body = &body[ct_len..];
+                let (flags, ct_len, remaining_body) = parse_frame_from_slice(body)?;
+                
+                let ct = &remaining_body[..ct_len];
+                body = &remaining_body[ct_len..];
 
                 let is_final = (flags & FLAG_FINAL) != 0;
 
@@ -384,17 +400,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                let mut frame_header = [0u8; 5];
-                reader.read_exact(&mut frame_header).map_err(|e| {
-                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                        EncFileError::Malformed
-                    } else {
-                        EncFileError::Io(e)
-                    }
-                })?;
-
-                let flags = frame_header[0];
-                let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+                let (flags, ct_len) = parse_frame_from_reader(reader)?;
 
                 let mut ct = vec![0u8; ct_len];
                 reader.read_exact(&mut ct).map_err(|e| {
@@ -409,7 +415,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
                 if is_final {
                     let pt =
-                        Zeroizing::new(dec.decrypt_last(&*ct).map_err(|_| EncFileError::Crypto)?);
+                        Zeroizing::new(dec.decrypt_last(ct.as_slice()).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
@@ -417,7 +423,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                     break;
                 } else {
                     let pt =
-                        Zeroizing::new(dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?);
+                        Zeroizing::new(dec.decrypt_next(ct.as_slice()).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
@@ -439,17 +445,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                let mut frame_header = [0u8; 5];
-                reader.read_exact(&mut frame_header).map_err(|e| {
-                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                        EncFileError::Malformed
-                    } else {
-                        EncFileError::Io(e)
-                    }
-                })?;
-
-                let flags = frame_header[0];
-                let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+                let (flags, ct_len) = parse_frame_from_reader(reader)?;
 
                 let mut ct = vec![0u8; ct_len];
                 reader.read_exact(&mut ct).map_err(|e| {
@@ -463,9 +459,12 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 // Build nonce: 8-byte prefix + 4-byte counter
-                let mut nonce_bytes = Zeroizing::new(Vec::with_capacity(12));
-                nonce_bytes.extend_from_slice(prefix);
-                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
+                let nonce_bytes = Zeroizing::new({
+                    let mut bytes = Vec::with_capacity(12);
+                    bytes.extend_from_slice(prefix);
+                    bytes.extend_from_slice(&counter.to_be_bytes());
+                    bytes
+                });
 
                 let pt = Zeroizing::new(
                     cipher

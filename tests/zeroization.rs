@@ -1,5 +1,5 @@
-use enc_file::{EncryptOptions, KeyMap, load_keymap, save_keymap};
 use secrecy::SecretString;
+use enc_file::{EncryptOptions, KeyMap, load_keymap, save_keymap};
 
 /// Test that keymap operations don't leak plaintext data.
 /// This is a basic test to ensure our zeroization changes work.
