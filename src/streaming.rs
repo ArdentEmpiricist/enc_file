@@ -414,7 +414,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                     break;
                 } else {
                     let pt =
-                        Zeroizing::new(dec.decrypt_next(&*ct).map_err(|_| EncFileError::Crypto)?);
+                        Zeroizing::new(dec.decrypt_next(&ct).map_err(|_| EncFileError::Crypto)?);
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
