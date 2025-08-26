@@ -53,7 +53,7 @@ fn kdf_validation_enforces_minima() {
     let weak_memory = EncryptOptions {
         kdf_params: KdfParams {
             t_cost: 3,
-            mem_kib: 1024, // Below minimum of 64 MiB
+            mem_kib: 1024, // Below minimum of 65536 KiB (64 MiB)
             parallelism: 1,
         },
         ..Default::default()
