@@ -43,7 +43,7 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     let end = 4 + header_len;
 
     // Parse header as generic CBOR value
-    let mut header_val: Value = ciborium::de::from_reader(&file_bytes[start..end]).unwrap();
+    let mut header_val: Value = ciborium::de::from_slice(&file_bytes[start..end]).unwrap();
 
     // header: Map(Value -> Value) with text keys like "stream", "chunk_size"
     let mut stream_found = false;
