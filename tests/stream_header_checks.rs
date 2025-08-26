@@ -31,9 +31,9 @@ fn make_stream_ct(
 }
 
 fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    use ciborium::value::Value;
-
-    // layout: [4 bytes LE header_len][header_bytes][ciphertext...]
+    // NOTE: ciborium::value::Value::Map is a Vec<(Value, Value)>, and key comparison uses Value::eq.
+    // This logic is compatible with serde_cbor::Value::Map, but if the API changes, this code may break.
+    // The following code assumes that inserting and updating keys in the Vec works as expected.
     assert!(file_bytes.len() >= 4);
     let mut len_le = [0u8; 4];
     len_le.copy_from_slice(&file_bytes[..4]);
