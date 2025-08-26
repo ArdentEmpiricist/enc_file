@@ -31,10 +31,35 @@ fn make_stream_ct(
     (td, out, pw, bytes)
 }
 
+/// Helper function to safely find and update or insert a key in a CBOR map.
+/// This abstracts away the internal Vec structure and makes the code more robust.
+fn update_or_insert_map_key(map: &mut Vec<(Value, Value)>, key: Value, new_value: Value) {
+    // Try to find and update existing key
+    for (k, v) in map.iter_mut() {
+        if *k == key {
+            *v = new_value;
+            return;
+        }
+    }
+    // Key not found, insert new key-value pair
+    map.push((key, new_value));
+}
+
+/// Helper function to safely find a key in a CBOR map and return mutable reference to its value.
+/// This abstracts away the internal Vec structure for better maintainability.
+fn find_map_value_mut<'a>(map: &'a mut Vec<(Value, Value)>, key: &Value) -> Option<&'a mut Value> {
+    for (k, v) in map.iter_mut() {
+        if k == key {
+            return Some(v);
+        }
+    }
+    None
+}
+
 fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    // NOTE: ciborium::value::Value::Map is a Vec<(Value, Value)>, and key comparison uses Value::eq.
-    // This logic is compatible with serde_cbor::Value::Map, but if the API changes, this code may break.
-    // The following code assumes that inserting and updating keys in the Vec works as expected.
+    // Improved implementation: Use helper functions to abstract away the Vec operations.
+    // This makes the code more resilient to potential changes in ciborium's Value::Map implementation.
+    // The helper functions encapsulate the map operations and provide a cleaner API.
     assert!(file_bytes.len() >= 4);
     let mut len_le = [0u8; 4];
     len_le.copy_from_slice(&file_bytes[..4]);
@@ -47,36 +72,20 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     let mut header_val: Value = ciborium::de::from_reader(&file_bytes[start..end]).unwrap();
 
     // header: Map(Value -> Value) with text keys like "stream", "chunk_size"
-    let mut stream_found = false;
     if let Value::Map(ref mut top) = header_val {
         let stream_key = Value::Text("stream".to_string());
         let cs_key = Value::Text("chunk_size".to_string());
 
-        // Find "stream" entry
-        for (key, value) in top.iter_mut() {
-            if *key == stream_key {
-                if let Value::Map(ref mut stream_map) = *value {
-                    let mut chunk_size_found = false;
-                    for (sk, sv) in stream_map.iter_mut() {
-                        if *sk == cs_key {
-                            *sv = Value::Integer(new_chunk.into());
-                            chunk_size_found = true;
-                            break;
-                        }
-                    }
-                    if !chunk_size_found {
-                        stream_map.push((cs_key, Value::Integer(new_chunk.into())));
-                    }
-                    stream_found = true;
-                }
-                break;
+        // Use helper function to find stream entry safely
+        if let Some(stream_value) = find_map_value_mut(top, &stream_key) {
+            if let Value::Map(stream_map) = stream_value {
+                // Update chunk_size in existing stream map
+                update_or_insert_map_key(stream_map, cs_key, Value::Integer(new_chunk.into()));
             }
-        }
-        // If "stream" not found, add it
-        if !stream_found {
-            let cs_key = Value::Text("chunk_size".to_string());
+        } else {
+            // Stream not found, create new stream map with chunk_size
             let stream_map = vec![(cs_key, Value::Integer(new_chunk.into()))];
-            top.push((stream_key, Value::Map(stream_map)));
+            update_or_insert_map_key(top, stream_key, Value::Map(stream_map));
         }
     } else {
         panic!("header is not a CBOR map");
