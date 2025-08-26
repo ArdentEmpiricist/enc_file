@@ -420,7 +420,7 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
-                    // (no explicit zeroize needed)
+                    // (no explicit zeroize needed) -- zeroization is handled by the Zeroizing wrapper's Drop implementation
                     break;
                 } else {
                     let pt = Zeroizing::new(
