@@ -251,15 +251,15 @@ fn parse_frame_from_slice(body: &[u8]) -> Result<(u8, usize, &[u8]), EncFileErro
     if body.len() < 5 {
         return Err(EncFileError::Malformed);
     }
-    
+
     let flags = body[0];
     let ct_len = u32::from_be_bytes(body[1..5].try_into().unwrap()) as usize;
     let remaining = &body[5..];
-    
+
     if remaining.len() < ct_len {
         return Err(EncFileError::Malformed);
     }
-    
+
     Ok((flags, ct_len, remaining))
 }
 
@@ -274,15 +274,15 @@ fn parse_frame_from_reader<R: Read>(reader: &mut R) -> Result<(u8, usize), EncFi
             EncFileError::Io(e)
         }
     })?;
-    
+
     let flags = frame_header[0];
     let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
-    
+
     Ok((flags, ct_len))
 }
 
 /// Decrypt streaming data into a Vec<u8>.
-/// Returns (flags, ct_len, remaining_body) or error if malformed.
+/// Returns a decrypted buffer or an error if the input is malformed.
 ///
 /// This function validates the frame structure and ensures that `ct_len` does not exceed the available body data.
 /// This is a critical security check to prevent buffer overflows and other vulnerabilities.
@@ -310,7 +310,7 @@ pub fn decrypt_stream_into_vec(
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
                 let (flags, ct_len, remaining_body) = parse_frame_from_slice(body)?;
-                
+
                 let ct = &remaining_body[..ct_len];
                 body = &remaining_body[ct_len..];
 
@@ -345,7 +345,7 @@ pub fn decrypt_stream_into_vec(
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
                 let (flags, ct_len, remaining_body) = parse_frame_from_slice(body)?;
-                
+
                 let ct = &remaining_body[..ct_len];
                 body = &remaining_body[ct_len..];
 
@@ -414,16 +414,20 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 if is_final {
-                    let pt =
-                        Zeroizing::new(dec.decrypt_last(ct.as_slice()).map_err(|_| EncFileError::Crypto)?);
+                    let pt = Zeroizing::new(
+                        dec.decrypt_last(ct.as_slice())
+                            .map_err(|_| EncFileError::Crypto)?,
+                    );
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
                     // (no explicit zeroize needed)
                     break;
                 } else {
-                    let pt =
-                        Zeroizing::new(dec.decrypt_next(ct.as_slice()).map_err(|_| EncFileError::Crypto)?);
+                    let pt = Zeroizing::new(
+                        dec.decrypt_next(ct.as_slice())
+                            .map_err(|_| EncFileError::Crypto)?,
+                    );
                     writer.write_all(&pt)?;
 
                     // Plaintext buffer will be zeroized automatically on drop
