@@ -1,7 +1,11 @@
 //! Core types and enums for enc_file.
 
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use thiserror::Error;
+
+/// Cached CPU count to avoid repeated system calls in KdfParams::default().
+static CACHED_CPU_COUNT: LazyLock<u32> = LazyLock::new(|| (num_cpus::get() as u32).clamp(1, 4));
 
 /// Default chunk size for streaming (1 MiB).
 pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
@@ -37,7 +41,7 @@ impl Default for KdfParams {
         Self {
             t_cost: 3,
             mem_kib: 64 * 1024,
-            parallelism: (num_cpus::get() as u32).clamp(1, 4),
+            parallelism: *CACHED_CPU_COUNT,
         }
     }
 }
