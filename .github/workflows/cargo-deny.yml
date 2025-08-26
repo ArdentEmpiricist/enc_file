@@ -1,0 +1,25 @@
+permissions:
+  contents: read
+name: Cargo Deny
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+  schedule:
+    - cron: '0 4 * * 1'  # Weekly on Monday at 4 AM UTC
+
+jobs:
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      
+    - name: Run cargo-deny
+      uses: EmbarkStudios/cargo-deny-action@f2ba7abc2abebaf185c833c3961145a3c275caad # v2.0.13
+      with:
+        arguments: --all-features

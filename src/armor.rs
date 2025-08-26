@@ -1,7 +1,7 @@
 //! ASCII armor encoding and decoding for encrypted data.
 
 use crate::types::EncFileError;
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 
 /// Encode binary data with ASCII armor (Base64 with PEM-style headers).
 ///

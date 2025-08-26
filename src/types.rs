@@ -1,7 +1,16 @@
 //! Core types and enums for enc_file.
 
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use thiserror::Error;
+
+/// Cached CPU count to avoid repeated system calls in KdfParams::default().
+///
+/// The CPU count is clamped to a maximum of 4 to provide reasonable default parallelism
+/// for KDF operations, balancing performance and resource usage. Systems with more than
+/// 4 cores may wish to override this value for higher parallelism, but 4 is chosen as a
+/// conservative default to avoid excessive resource consumption and potential DoS risks.
+static CACHED_CPU_COUNT: LazyLock<u32> = LazyLock::new(|| (num_cpus::get() as u32).clamp(1, 4));
 
 /// Default chunk size for streaming (1 MiB).
 pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
@@ -33,11 +42,11 @@ pub struct KdfParams {
 
 impl Default for KdfParams {
     fn default() -> Self {
-        // Interactive defaults; adjust if you need higher resistance.
+        // Hardened defaults for security (2024+ recommendations)
         Self {
-            t_cost: 2,
+            t_cost: 3,
             mem_kib: 64 * 1024,
-            parallelism: 1,
+            parallelism: *CACHED_CPU_COUNT,
         }
     }
 }
@@ -98,7 +107,9 @@ pub enum EncFileError {
     #[error("invalid argument: {0}")]
     Invalid(&'static str),
     #[error("serialization error")]
-    Serde(#[from] serde_cbor::Error),
+    Cbor(#[from] ciborium::de::Error<std::io::Error>),
+    #[error("serialization error")]
+    CborSer(#[from] ciborium::ser::Error<std::io::Error>),
 }
 
 /// Supported hash algorithms for general purpose hashing.

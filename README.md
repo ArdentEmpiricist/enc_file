@@ -1,8 +1,8 @@
 [![Crates.io](https://img.shields.io/crates/v/enc_file?label=Crates.io)](https://crates.io/crates/enc_file)
-[![Clippy](https://img.shields.io/github/actions/workflow/status/ArdentEmpiricist/enc_file/rust-clippy.yml?label=Rust%20Clippy)](https://github.com/LazyEmpiricist/enc_file)
+[![Clippy](https://img.shields.io/github/actions/workflow/status/ArdentEmpiricist/enc_file/rust-clippy.yml?label=Rust%20Clippy)](https://github.com/ArdentEmpiricist/enc_file)
 [![Deploy](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml/badge.svg)](https://github.com/ArdentEmpiricist/enc_file/actions/workflows/deploy.yml)
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
-[![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/LazyEmpiricist/enc_file/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/ArdentEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
 
 # enc_file
@@ -59,7 +59,7 @@ Add to a project as a library:
 ```toml
 # Cargo.toml
 [dependencies]
-enc_file = "0.5.13"
+enc_file = "0.5.14"
 ```
 
 ---
@@ -270,11 +270,45 @@ assert_eq!(loaded, km);
 
 ## Error handling
 
-All fallible APIs return `Result<_, EncFileError>`. Common cases:
+All fallible APIs return `Result<_, EncFileError>`. The error type is trait-based (`thiserror::Error`) and covers all expected failures without panics.
 
-- `EncFileError::Io` I/O failures
-- `EncFileError::Crypto` AEAD failures (bad password, tamper)
-- `EncFileError::Format` header parsing/validation issues
+**Error variants:**
+
+- `Io(std::io::Error)`: I/O failures (file read/write issues)
+- `Crypto`: AEAD encryption/decryption failures (bad password, tampering)
+- `UnsupportedVersion(u16)`: File format version not supported
+- `UnsupportedAead(u8)`: AEAD algorithm ID not supported
+- `UnsupportedKdf(u8)`: Password KDF algorithm ID not supported
+- `Malformed`: Corrupt or invalid file structure
+- `Invalid(&'static str)`: Invalid argument or operation (e.g. streaming with keymap)
+- `Serde(serde_cbor::Error)`: Serialization errors (CBOR encoding/decoding)
+
+All errors are returned as `Err(EncFileError)`; they never panic for expected failures.  
+See library and CLI tests for examples of error handling.
+
+---
+
+## KDF defaults and bounds
+
+This library uses **Argon2id** for password-based key derivation with hardened defaults:
+
+- **Time cost**: 3 iterations (minimum)
+- **Memory cost**: 64 MiB (minimum)  
+- **Parallelism**: min(4, number of CPU cores)
+
+These parameters are enforced at the library level. The CLI uses compliant defaults automatically.
+
+## Streaming and armor
+
+- **Streaming mode** provides constant memory usage for large files using chunked framing
+- **ASCII armor is ignored in streaming mode** - only non-streaming payloads can be armored
+- Maximum chunk size is `u32::MAX - 16` bytes due to 32-bit frame length + 16-byte AEAD tag
+
+## Compatibility policy
+
+This library maintains backward compatibility for reading encrypted files across versions (beginning from 0.5).
+**Backward-compatible format extensions** (optional header fields) may be added between minor releases.
+Existing files remain decryptable by newer versions.
 
 ---
 

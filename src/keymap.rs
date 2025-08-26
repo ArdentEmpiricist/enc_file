@@ -1,11 +1,12 @@
 //! Named symmetric key map management.
 
-use crate::types::{EncFileError, EncryptOptions, KeyMap};
 use crate::file::write_all_atomic;
+use crate::types::{EncFileError, EncryptOptions, KeyMap};
 use secrecy::SecretString;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use zeroize::Zeroize;
 
 /// Load an encrypted key map from disk using a password.
 ///
@@ -23,8 +24,12 @@ use std::path::Path;
 pub fn load_keymap(path: &Path, password: SecretString) -> Result<KeyMap, EncFileError> {
     let mut data = Vec::new();
     File::open(path)?.read_to_end(&mut data)?;
-    let pt = crate::decrypt_bytes(&data, password)?;
-    let map: KeyMap = serde_cbor::from_slice(&pt)?;
+    let mut pt = crate::decrypt_bytes(&data, password)?;
+    let map: KeyMap = ciborium::de::from_reader(pt.as_slice())?;
+
+    // Zeroize the plaintext keymap data after deserialization
+    pt.zeroize();
+
     Ok(map)
 }
 
@@ -50,12 +55,17 @@ pub fn save_keymap(
     map: &KeyMap,
     opts: &EncryptOptions,
 ) -> Result<(), EncFileError> {
-    let pt = serde_cbor::to_vec(map)?;
+    let mut pt = Vec::new();
+    ciborium::ser::into_writer(map, &mut pt)?;
     let bytes = if opts.stream {
         return Err(EncFileError::Invalid("keymap: streaming not supported"));
     } else {
         crate::encrypt_bytes(&pt, password, opts)?
     };
+
+    // Zeroize the plaintext serialized keymap data after encryption
+    pt.zeroize();
+
     write_all_atomic(path, &bytes, true)?;
     Ok(())
 }

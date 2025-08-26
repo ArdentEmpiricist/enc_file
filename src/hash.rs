@@ -179,7 +179,7 @@ pub fn hash_file(path: &Path, alg: HashAlg) -> Result<Vec<u8>, EncFileError> {
 /// Keyed BLAKE3 hash for authentication (MAC-style).
 ///
 /// # Security Notes
-/// 
+///
 /// - This is *not* a KDF. It is a keyed hash for authentication (like a MAC).
 /// - `key32` **must** be a 32-byte secret key.
 /// - Only BLAKE3 supports this operation natively - other algorithms would require HMAC.

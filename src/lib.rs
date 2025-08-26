@@ -60,8 +60,9 @@ mod types;
 // External dependencies
 use secrecy::SecretString;
 use std::fs::File;
-use std::io::Read;
-use std::path::Path;
+use std::io::{Read, Seek};
+use std::path::{Path, PathBuf};
+use zeroize::Zeroize;
 
 // Re-export public types and constants
 pub use types::{
@@ -122,7 +123,8 @@ pub fn encrypt_bytes(
         ciphertext.len() as u64,
     );
 
-    let header_bytes = serde_cbor::to_vec(&header)?;
+    let mut header_bytes = Vec::new();
+    ciborium::ser::into_writer(&header, &mut header_bytes)?;
     let mut out = Vec::new();
     out.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
     out.extend_from_slice(&header_bytes);
@@ -161,7 +163,7 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
     let header_bytes = &input[4..4 + header_len];
     let body = &input[4 + header_len..];
 
-    let header: format::DiskHeader = serde_cbor::from_slice(header_bytes)?;
+    let header: format::DiskHeader = ciborium::de::from_reader(header_bytes)?;
 
     // Validate header
     if header.magic != *format::MAGIC {
@@ -225,6 +227,8 @@ pub fn encrypt_file(
     let mut data = Vec::new();
     File::open(input)?.read_to_end(&mut data)?;
     let out_bytes = encrypt_bytes(&data, password, &opts)?;
+    // Zeroize input plaintext buffer after encryption
+    data.zeroize();
     let out_path = file::default_out_path(input, output, "enc");
     if out_path.exists() && !opts.force {
         return Err(EncFileError::Invalid(
@@ -241,19 +245,196 @@ pub fn decrypt_file(
     output: Option<&Path>,
     password: SecretString,
 ) -> Result<std::path::PathBuf, EncFileError> {
-    let mut data = Vec::new();
-    File::open(input)?.read_to_end(&mut data)?;
-    let mut pt = decrypt_bytes(&data, password)?;
     let out_path = file::default_out_path_for_decrypt(input, output);
     if out_path.exists() {
         return Err(EncFileError::Invalid(
-            "output exists; use --force (via CLI) to overwrite",
+            "output exists; use --force to overwrite",
         ));
     }
-    file::write_all_atomic(&out_path, &pt, false)?;
-    // Cheap hardening: wipe decrypted plaintext buffer after writing
-    file::secure_wipe_buffer(&mut pt);
-    Ok(out_path)
+
+    let mut input_file = File::open(input)?;
+    
+    // Read a small buffer to check if the file is armored
+    let mut peek_buffer = [0u8; 1024];
+    let peek_len = input_file.read(&mut peek_buffer)?;
+    let peek_data = &peek_buffer[..peek_len];
+    
+    // If armored, we need to read the entire file to decode it
+    if armor::looks_armored(peek_data) {
+        // Reset file position and read everything for armor decoding
+        input_file.rewind()?;
+        let mut file_data = Vec::new();
+        input_file.read_to_end(&mut file_data)?;
+        let binary_data = armor::dearmor_decode(&file_data)?;
+        
+        // Process the decoded binary data in memory
+        return decrypt_file_from_binary_data(&binary_data, &out_path, password);
+    }
+    
+    // For binary files, we can be more memory-efficient
+    // Reset to beginning and parse header without reading entire file
+    input_file.rewind()?;
+    
+    // Read header length
+    let mut header_len_buf = [0u8; 4];
+    input_file.read_exact(&mut header_len_buf)?;
+    let header_len = u32::from_le_bytes(header_len_buf) as usize;
+    
+    // Read header
+    let mut header_buf = vec![0u8; header_len];
+    input_file.read_exact(&mut header_buf)?;
+    
+    let header: format::DiskHeader = ciborium::de::from_reader(&header_buf[..])?;
+    
+    // Validate format version
+    if header.version != format::VERSION {
+        return Err(EncFileError::UnsupportedVersion(header.version));
+    }
+
+    // Parse algorithms
+    let aead_alg = match header.aead_alg {
+        1 => types::AeadAlg::XChaCha20Poly1305,
+        2 => types::AeadAlg::Aes256GcmSiv,
+        o => return Err(EncFileError::UnsupportedAead(o)),
+    };
+
+    let kdf_alg = match header.kdf_alg {
+        1 => types::KdfAlg::Argon2id,
+        o => return Err(EncFileError::UnsupportedKdf(o)),
+    };
+    let _ = kdf_alg; // currently only Argon2id is supported
+
+    // Derive key
+    let key = kdf::derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
+
+    if let Some(stream_info) = &header.stream {
+        // Streaming mode: use constant-memory streaming decryption directly from file
+        streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
+        
+        let mut out_file = File::create(&out_path)?;
+        
+        streaming::decrypt_stream_to_writer(
+            &mut input_file,
+            &mut out_file,
+            aead_alg,
+            &key,
+            stream_info,
+        )?;
+
+        out_file.sync_all()?;
+
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+
+        Ok(out_path)
+    } else {
+        // Non-streaming mode: read the body into memory
+        let expected_body_len = header.ct_len as usize;
+        let mut body = vec![0u8; expected_body_len];
+        input_file.read_exact(&mut body)?;
+
+        let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, &body)?;
+        file::write_all_atomic(&out_path, &pt, false)?;
+
+        // Cheap hardening: wipe decrypted plaintext buffer after writing
+        pt.zeroize();
+
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+
+        Ok(out_path)
+    }
+}
+
+/// Helper function to decrypt from binary data in memory (used for armored files).
+fn decrypt_file_from_binary_data(
+    binary_data: &[u8],
+    out_path: &Path,
+    password: SecretString,
+) -> Result<PathBuf, EncFileError> {
+    // Now we have binary data, proceed with normal decryption logic
+    if binary_data.len() < 4 {
+        return Err(EncFileError::Malformed);
+    }
+
+    let header_len = u32::from_le_bytes(binary_data[0..4].try_into().unwrap()) as usize;
+    if binary_data.len() < 4 + header_len {
+        return Err(EncFileError::Malformed);
+    }
+
+    let header_buf = &binary_data[4..4 + header_len];
+
+    let header: format::DiskHeader = ciborium::de::from_reader(header_buf)?;
+
+    // Validate format version
+    if header.version != format::VERSION {
+        return Err(EncFileError::UnsupportedVersion(header.version));
+    }
+
+    // Parse algorithms
+    let aead_alg = match header.aead_alg {
+        1 => types::AeadAlg::XChaCha20Poly1305,
+        2 => types::AeadAlg::Aes256GcmSiv,
+        o => return Err(EncFileError::UnsupportedAead(o)),
+    };
+
+    let kdf_alg = match header.kdf_alg {
+        1 => types::KdfAlg::Argon2id,
+        o => return Err(EncFileError::UnsupportedKdf(o)),
+    };
+    let _ = kdf_alg; // currently only Argon2id is supported
+
+    // Derive key
+    let key = kdf::derive_key_argon2id(&password, header.kdf_params, &header.salt)?;
+
+    let body = &binary_data[4 + header_len..];
+
+    if let Some(stream_info) = &header.stream {
+        // Streaming mode: use constant-memory streaming decryption
+        streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
+
+        // For streaming with armored data, we need to create a cursor from the body data
+        use std::io::Cursor;
+        let mut reader = Cursor::new(body);
+        let mut out_file = File::create(out_path)?;
+
+        streaming::decrypt_stream_to_writer(
+            &mut reader,
+            &mut out_file,
+            aead_alg,
+            &key,
+            stream_info,
+        )?;
+
+        out_file.sync_all()?;
+
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+
+        Ok(out_path.to_path_buf())
+    } else {
+        // Non-streaming mode: decrypt the body directly
+
+        // Body length must match `ct_len` from header
+        if body.len() as u64 != header.ct_len {
+            return Err(EncFileError::Malformed);
+        }
+
+        let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, body)?;
+        file::write_all_atomic(out_path, &pt, false)?;
+
+        // Cheap hardening: wipe decrypted plaintext buffer after writing
+        pt.zeroize();
+
+        // Zeroize derived key
+        let mut key_z = key;
+        crypto::zeroize_key(&mut key_z);
+
+        Ok(out_path.to_path_buf())
+    }
 }
 
 /// Decrypt options for file operations.

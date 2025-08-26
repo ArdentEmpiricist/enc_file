@@ -1,6 +1,7 @@
 use assert_fs::prelude::*;
 use secrecy::SecretString;
 use std::fs;
+use ciborium::Value;
 
 use enc_file::{AeadAlg, EncFileError, EncryptOptions, decrypt_file, encrypt_file_streaming};
 
@@ -30,11 +31,35 @@ fn make_stream_ct(
     (td, out, pw, bytes)
 }
 
-fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    use serde_cbor::Value;
-    use std::collections::BTreeMap;
+/// Helper function to safely find and update or insert a key in a CBOR map.
+/// This abstracts away the internal Vec structure and makes the code more robust.
+fn update_or_insert_map_key(map: &mut Vec<(Value, Value)>, key: Value, new_value: Value) {
+    // Try to find and update existing key
+    for (k, v) in map.iter_mut() {
+        if *k == key {
+            *v = new_value;
+            return;
+        }
+    }
+    // Key not found, insert new key-value pair
+    map.push((key, new_value));
+}
 
-    // layout: [4 bytes LE header_len][header_bytes][ciphertext...]
+/// Helper function to safely find a key in a CBOR map and return mutable reference to its value.
+/// This abstracts away the internal Vec structure for better maintainability.
+fn find_map_value_mut<'a>(map: &'a mut Vec<(Value, Value)>, key: &Value) -> Option<&'a mut Value> {
+    for (k, v) in map.iter_mut() {
+        if k == key {
+            return Some(v);
+        }
+    }
+    None
+}
+
+fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
+    // Use helper functions to adapt to ciborium's Value::Map API, which differs from serde_cbor.
+    // These helpers abstract away the Vec operations required by ciborium's map representation.
+    // This is necessary due to library differences, not a general code improvement.
     assert!(file_bytes.len() >= 4);
     let mut len_le = [0u8; 4];
     len_le.copy_from_slice(&file_bytes[..4]);
@@ -44,30 +69,31 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
     let end = 4 + header_len;
 
     // Parse header as generic CBOR value
-    let mut header_val: Value = serde_cbor::from_slice(&file_bytes[start..end]).unwrap();
+    let mut header_val: Value = ciborium::de::from_reader(&file_bytes[start..end]).unwrap();
 
     // header: Map(Value -> Value) with text keys like "stream", "chunk_size"
     if let Value::Map(ref mut top) = header_val {
         let stream_key = Value::Text("stream".to_string());
+        let cs_key = Value::Text("chunk_size".to_string());
 
-        // Ensure "stream" exists and is a map
-        let stream_val = top
-            .entry(stream_key)
-            .or_insert_with(|| Value::Map(BTreeMap::new()));
-
-        if let Value::Map(stream_map) = stream_val {
-            // Set/overwrite "chunk_size"
-            let cs_key = Value::Text("chunk_size".to_string());
-            stream_map.insert(cs_key, Value::Integer(i128::from(new_chunk)));
+        // Use helper function to find stream entry safely
+        if let Some(stream_value) = find_map_value_mut(top, &stream_key) {
+            if let Value::Map(stream_map) = stream_value {
+                // Update chunk_size in existing stream map
+                update_or_insert_map_key(stream_map, cs_key, Value::Integer(new_chunk.into()));
+            }
         } else {
-            panic!("header.stream is not a CBOR map");
+            // Stream not found, create new stream map with chunk_size
+            let stream_map = vec![(cs_key, Value::Integer(new_chunk.into()))];
+            update_or_insert_map_key(top, stream_key, Value::Map(stream_map));
         }
     } else {
         panic!("header is not a CBOR map");
     }
 
     // Re-encode header and rebuild the file
-    let new_header = serde_cbor::to_vec(&header_val).unwrap();
+    let mut new_header = Vec::new();
+    ciborium::ser::into_writer(&header_val, &mut new_header).unwrap();
     let mut rebuilt = Vec::with_capacity(4 + new_header.len() + (file_bytes.len() - end));
     rebuilt.extend_from_slice(&(new_header.len() as u32).to_le_bytes());
     rebuilt.extend_from_slice(&new_header);
@@ -76,7 +102,8 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
 }
 
 fn msg_contains_any(msg: &str, needles: &[&str]) -> bool {
-    needles.iter().any(|s| msg.contains(s))
+    let msg_l = msg.to_lowercase();
+    needles.iter().any(|n| msg_l.contains(n))
 }
 
 #[test]
@@ -96,7 +123,7 @@ fn dec_rejects_zero_chunk_size_in_header_for_both_algs() {
             Err(EncFileError::Invalid(msg)) => {
                 // Accept multiple valid phrasings from different implementations
                 let ok = msg_contains_any(
-                    &msg,
+                    msg,
                     &[
                         "chunk_size",     // underscore form
                         "chunk size",     // space form
@@ -132,7 +159,7 @@ fn dec_rejects_too_large_chunk_size_in_header_for_both_algs() {
             Err(EncFileError::Invalid(msg)) => {
                 // Accept both underscore/space and explicit 32-bit framing hints
                 let ok = msg_contains_any(
-                    &msg,
+                    msg,
                     &[
                         "chunk_size",           // underscore form
                         "chunk size",           // space form
