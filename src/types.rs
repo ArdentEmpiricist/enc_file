@@ -5,6 +5,11 @@ use std::sync::LazyLock;
 use thiserror::Error;
 
 /// Cached CPU count to avoid repeated system calls in KdfParams::default().
+///
+/// The CPU count is clamped to a maximum of 4 to provide reasonable default parallelism
+/// for KDF operations, balancing performance and resource usage. Systems with more than
+/// 4 cores may wish to override this value for higher parallelism, but 4 is chosen as a
+/// conservative default to avoid excessive resource consumption and potential DoS risks.
 static CACHED_CPU_COUNT: LazyLock<u32> = LazyLock::new(|| (num_cpus::get() as u32).clamp(1, 4));
 
 /// Default chunk size for streaming (1 MiB).
