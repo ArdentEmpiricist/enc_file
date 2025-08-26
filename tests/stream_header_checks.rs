@@ -57,9 +57,9 @@ fn find_map_value_mut<'a>(map: &'a mut Vec<(Value, Value)>, key: &Value) -> Opti
 }
 
 fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
-    // Improved implementation: Use helper functions to abstract away the Vec operations.
-    // This makes the code more resilient to potential changes in ciborium's Value::Map implementation.
-    // The helper functions encapsulate the map operations and provide a cleaner API.
+    // Use helper functions to adapt to ciborium's Value::Map API, which differs from serde_cbor.
+    // These helpers abstract away the Vec operations required by ciborium's map representation.
+    // This is necessary due to library differences, not a general code improvement.
     assert!(file_bytes.len() >= 4);
     let mut len_le = [0u8; 4];
     len_le.copy_from_slice(&file_bytes[..4]);
