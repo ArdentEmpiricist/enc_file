@@ -95,7 +95,13 @@ Options of interest:
 - `--out` / `-o` specify output file
 - `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
 - `--stream` stream mode for large inputs
-- `--chunk-size <bytes>` set chunk size in streaming mode (default from library is 1 MiB)
+- `--chunk-size <bytes>`  
+  Set the maximum frame length in streaming mode.  
+  • Use `0` (the default) to enable the adaptive helper, which picks an optimal size based on file size:  
+    – ≤ 1 MiB → 64 KiB  
+    – 1 MiB–100 MiB → 1 MiB  
+    – > 100 MiB → scales up (max 8 MiB)  
+  • Any value above `u32::MAX - 16` will be rejected.
 - `--armor` ASCII-armor output, attention: armored streaming is not available
 - `--force` / `-f` overwrite output if file exists
 - `--password-file` / `-p` `<PATH>` read password from a file
@@ -181,7 +187,14 @@ let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 # Ok::<(), enc_file::EncFileError>(())
 ```
 
-> **Chunk size:** In streaming mode, `chunk_size = 0` uses the default (1 MiB). The maximum allowed is `u32::MAX - 16` bytes, because each frame’s length is a 32-bit count of ciphertext bytes and the AEAD adds a 16-byte tag.
+> **Chunk size:**  
+> In streaming mode, `--chunk-size 0` (the default) enables an adaptive helper that picks an optimal frame size based on the total file length:  
+>
+> - ≤ 1 MiB → 64 KiB  
+> - 1 MiB – 100 MiB → 1 MiB  
+> - > 100 MiB → scales up (max 8 MiB)  
+>  
+> You can override this by passing any non-zero byte count. The absolute maximum is `u32::MAX - 16` bytes (each frame encodes its length as a 32-bit ciphertext-byte count plus a 16-byte AEAD tag), and any larger value will be rejected.
 
 ### Hash helpers
 
