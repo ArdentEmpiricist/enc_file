@@ -15,6 +15,12 @@ static CACHED_CPU_COUNT: LazyLock<u32> = LazyLock::new(|| (num_cpus::get() as u3
 /// Default chunk size for streaming (1 MiB).
 pub const DEFAULT_CHUNK_SIZE: usize = 1 << 20;
 
+/// Minimum chunk size for streaming (64 KiB).
+pub const MIN_CHUNK_SIZE: usize = 64 * 1024;
+
+/// Maximum chunk size for streaming (8 MiB).
+pub const MAX_CHUNK_SIZE: usize = 8 * 1024 * 1024;
+
 /// Supported AEAD algorithms.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum AeadAlg {

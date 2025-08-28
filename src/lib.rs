@@ -60,7 +60,7 @@ mod types;
 // External dependencies
 use secrecy::SecretString;
 use std::fs::File;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroize;
 
@@ -311,16 +311,19 @@ pub fn decrypt_file(
         // Streaming mode: use constant-memory streaming decryption directly from file
         streaming::validate_chunk_size_for_streaming(stream_info.chunk_size as usize)?;
         
-        let mut out_file = File::create(&out_path)?;
+        let out_file = File::create(&out_path)?;
+        let mut buffered_out = std::io::BufWriter::with_capacity(64 * 1024, out_file);
         
         streaming::decrypt_stream_to_writer(
             &mut input_file,
-            &mut out_file,
+            &mut buffered_out,
             aead_alg,
             &key,
             stream_info,
         )?;
 
+        buffered_out.flush()?;
+        let out_file = buffered_out.into_inner().map_err(|e| EncFileError::Io(e.into_error()))?;
         out_file.sync_all()?;
 
         // Zeroize derived key
@@ -329,10 +332,13 @@ pub fn decrypt_file(
 
         Ok(out_path)
     } else {
-        // Non-streaming mode: read the body into memory
+        // Non-streaming mode: read the body into memory with buffered I/O
         let expected_body_len = header.ct_len as usize;
         let mut body = vec![0u8; expected_body_len];
-        input_file.read_exact(&mut body)?;
+        
+        // Use buffered reader for better performance on large non-streaming files
+        let mut buffered_input = std::io::BufReader::with_capacity(64 * 1024, input_file);
+        buffered_input.read_exact(&mut body)?;
 
         let mut pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, &body)?;
         file::write_all_atomic(&out_path, &pt, false)?;

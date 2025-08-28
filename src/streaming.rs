@@ -46,15 +46,46 @@ pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFil
     Ok(())
 }
 
-/// Calculate effective streaming chunk size (0 maps to default).
-fn effective_stream_chunk_size(user: usize) -> Result<usize, EncFileError> {
-    let eff = if user == 0 {
-        crate::types::DEFAULT_CHUNK_SIZE
+
+/// Calculate an optimal chunk size based on file size and available memory.
+/// 
+/// This function provides smarter defaults for better performance:
+/// - Small files (< 1 MiB): Use smaller chunks to reduce memory overhead
+/// - Medium files (1-100 MiB): Use 1-2 MiB chunks for good balance
+/// - Large files (> 100 MiB): Use larger chunks (up to 8 MiB) for better throughput
+/// 
+/// Always respects the user's explicit chunk size if provided (non-zero).
+fn calculate_optimal_chunk_size(user_chunk_size: usize, file_size_hint: Option<u64>) -> Result<usize, EncFileError> {
+    // If user specified a chunk size, use it
+    if user_chunk_size != 0 {
+        validate_chunk_size_for_streaming(user_chunk_size)?;
+        return Ok(user_chunk_size);
+    }
+    
+    // Calculate optimal size based on file size
+    let optimal_size = if let Some(file_size) = file_size_hint {
+        match file_size {
+            // Small files: use smaller chunks to reduce memory usage
+            0..=1_048_576 => crate::types::MIN_CHUNK_SIZE,  // 64 KiB for files <= 1 MiB
+            // Medium files: use balanced chunks
+            1_048_577..=104_857_600 => crate::types::DEFAULT_CHUNK_SIZE,  // 1 MiB for files 1-100 MiB
+            // Large files: use larger chunks for better throughput
+            _ => {
+                // Scale up to 8 MiB for very large files
+                let target_size = (file_size / 1000).clamp(
+                    crate::types::DEFAULT_CHUNK_SIZE as u64,
+                    crate::types::MAX_CHUNK_SIZE as u64
+                ) as usize;
+                target_size
+            }
+        }
     } else {
-        user
+        // No file size hint, use default
+        crate::types::DEFAULT_CHUNK_SIZE
     };
-    validate_chunk_size_for_streaming(eff)?;
-    Ok(eff)
+    
+    validate_chunk_size_for_streaming(optimal_size)?;
+    Ok(optimal_size)
 }
 
 /// Validate chunk size from header during decryption.
@@ -82,11 +113,10 @@ pub fn encrypt_file_streaming(
     password: SecretString,
     mut opts: EncryptOptions,
 ) -> Result<PathBuf, EncFileError> {
-    // Enforce chunk-size policy early (0 => default; too big => error)
-    if opts.chunk_size == 0 {
-        opts.chunk_size = crate::types::DEFAULT_CHUNK_SIZE;
-    }
-    let eff_chunk_size = effective_stream_chunk_size(opts.chunk_size)?;
+    // Calculate optimal chunk size based on file size and user preference
+    let file_metadata = std::fs::metadata(input).ok();
+    let file_size_hint = file_metadata.map(|m| m.len());
+    let eff_chunk_size = calculate_optimal_chunk_size(opts.chunk_size, file_size_hint)?;
 
     // Force streaming mode
     if !opts.stream {
@@ -148,8 +178,10 @@ pub fn encrypt_file_streaming(
     writer.write_all(&header_bytes)?;
 
     // Stream encryption with buffered I/O for better performance
+    // Use adaptive buffer size based on chunk size for optimal performance
     let file = File::open(input)?;
-    let mut reader = BufReader::with_capacity(eff_chunk_size.max(64 * 1024), file);
+    let buffer_size = (eff_chunk_size / 4).clamp(64 * 1024, 512 * 1024); // 1/4 chunk size, 64KB-512KB range
+    let mut reader = BufReader::with_capacity(buffer_size, file);
     let mut buf = vec![0u8; eff_chunk_size];
 
     match opts.alg {
@@ -402,9 +434,11 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
     // Validate header-declared chunk size early, using unified policy
     validate_header_chunk_size(stream_info.chunk_size as usize)?;
 
-    // Use buffered I/O for better performance
-    let mut buf_reader = BufReader::with_capacity(64 * 1024, reader);
-    let mut buf_writer = BufWriter::with_capacity(64 * 1024, writer);
+    // Use buffered I/O for better performance with adaptive buffer sizing
+    let expected_chunk_size = stream_info.chunk_size as usize;
+    let buffer_size = (expected_chunk_size / 4).clamp(64 * 1024, 512 * 1024);
+    let mut buf_reader = BufReader::with_capacity(buffer_size, reader);
+    let mut buf_writer = BufWriter::with_capacity(buffer_size, writer);
 
     match aead_alg {
         AeadAlg::XChaCha20Poly1305 => {
