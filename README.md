@@ -192,7 +192,7 @@ let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 >
 > - ≤ 1 MiB → 64 KiB  
 > - 1 MiB – 100 MiB → 1 MiB  
-> - > 100 MiB → scales up (max 8 MiB)  
+> - Files larger than 100 MiB → scales up (max 8 MiB)  
 >  
 > You can override this by passing any non-zero byte count. The absolute maximum is `u32::MAX - 16` bytes (each frame encodes its length as a 32-bit ciphertext-byte count plus a 16-byte AEAD tag), and any larger value will be rejected.
 
