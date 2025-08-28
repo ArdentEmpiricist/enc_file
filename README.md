@@ -89,22 +89,22 @@ enc-file enc --in secret.pdf
 enc-file enc -i secret.pdf -o hidden.enc -a aes -p <PATH> 
 ```
 
+```bash
 Options of interest:
-
-- `--in` / `-i` specify input file (required)
-- `--out` / `-o` specify output file
-- `--alg` / `-a` AEAD algorithm: `xchacha` (default), `aes`
-- `--stream` stream mode for large inputs
-- `--chunk-size <bytes>`  
-  Set the maximum frame length in streaming mode.  
-  • Use `0` (the default) to enable the adaptive helper, which picks an optimal size based on file size:  
-    – ≤ 1 MiB → 64 KiB  
-    – 1 MiB–100 MiB → 1 MiB  
-    – > 100 MiB → scales up (max 8 MiB)  
-  • Any value above `u32::MAX - 16` will be rejected.
-- `--armor` ASCII-armor output, attention: armored streaming is not available
-- `--force` / `-f` overwrite output if file exists
-- `--password-file` / `-p` `<PATH>` read password from a file
+  -i, --in <file>            Input file (required)
+  -o, --out <file>           Output file
+  -a, --alg <algorithm>      AEAD algorithm (xchacha default, aes)
+      --stream               Enable streaming mode for large inputs
+      --chunk-size <bytes>   Maximum frame length in streaming mode.
+                             Default (0): adaptive sizing based on total file size:
+                               • ≤ 1 MiB           → 64 KiB  
+                               • 1 MiB–100 MiB     → 1 MiB  
+                               • Files > 100 MiB   → scales up (max 8 MiB)  
+                             Must be ≤ u32::MAX – 16 (32-bit length + 16 B tag).
+  -f, --force                Overwrite output if file exists
+      --armor                ASCII-armor output (streaming not supported)
+  -p, --password-file <path> Read password from file
+```
 
 ### Decrypt
 
