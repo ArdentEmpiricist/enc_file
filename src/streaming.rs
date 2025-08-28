@@ -16,7 +16,7 @@ use chacha20poly1305::aead::stream::{DecryptorBE32, EncryptorBE32};
 use getrandom::fill as getrandom;
 use secrecy::SecretString;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use zeroize::{Zeroize, Zeroizing};
@@ -46,15 +46,48 @@ pub fn validate_chunk_size_for_streaming(chunk_size: usize) -> Result<(), EncFil
     Ok(())
 }
 
-/// Calculate effective streaming chunk size (0 maps to default).
-fn effective_stream_chunk_size(user: usize) -> Result<usize, EncFileError> {
-    let eff = if user == 0 {
-        crate::types::DEFAULT_CHUNK_SIZE
+/// Calculate an optimal chunk size based on file size and available memory.
+///
+/// This function provides smarter defaults for better performance:
+/// - Small files (< 1 MiB): Use smaller chunks to reduce memory overhead
+/// - Medium files (1-100 MiB): Use 1-2 MiB chunks for good balance
+/// - Large files (> 100 MiB): Use larger chunks (up to 8 MiB) for better throughput
+///
+/// Always respects the user's explicit chunk size if provided (non-zero).
+fn calculate_optimal_chunk_size(
+    user_chunk_size: usize,
+    file_size_hint: Option<u64>,
+) -> Result<usize, EncFileError> {
+    // If user specified a chunk size, use it
+    if user_chunk_size != 0 {
+        validate_chunk_size_for_streaming(user_chunk_size)?;
+        return Ok(user_chunk_size);
+    }
+
+    // Calculate optimal size based on file size
+    let optimal_size = if let Some(file_size) = file_size_hint {
+        match file_size {
+            // Small files: use smaller chunks to reduce memory usage
+            0..=1_048_576 => crate::types::MIN_CHUNK_SIZE, // 64 KiB for files <= 1 MiB
+            // Medium files: use balanced chunks
+            1_048_577..=104_857_600 => crate::types::DEFAULT_CHUNK_SIZE, // 1 MiB for files 1-100 MiB
+            // Large files: use larger chunks for better throughput
+            _ => {
+                // Scale up to 8 MiB for very large files
+
+                (file_size / 1000).clamp(
+                    crate::types::DEFAULT_CHUNK_SIZE as u64,
+                    crate::types::MAX_CHUNK_SIZE as u64,
+                ) as usize
+            }
+        }
     } else {
-        user
+        // No file size hint, use default
+        crate::types::DEFAULT_CHUNK_SIZE
     };
-    validate_chunk_size_for_streaming(eff)?;
-    Ok(eff)
+
+    validate_chunk_size_for_streaming(optimal_size)?;
+    Ok(optimal_size)
 }
 
 /// Validate chunk size from header during decryption.
@@ -82,11 +115,16 @@ pub fn encrypt_file_streaming(
     password: SecretString,
     mut opts: EncryptOptions,
 ) -> Result<PathBuf, EncFileError> {
-    // Enforce chunk-size policy early (0 => default; too big => error)
-    if opts.chunk_size == 0 {
-        opts.chunk_size = crate::types::DEFAULT_CHUNK_SIZE;
+    // Calculate optimal chunk size based on file size and user preference
+    let file_metadata = std::fs::metadata(input).ok();
+    let file_size_hint = file_metadata.map(|m| m.len());
+
+    // Validate file size for security
+    if let Some(file_size) = file_size_hint {
+        crate::crypto::validate_file_size(file_size)?;
     }
-    let eff_chunk_size = effective_stream_chunk_size(opts.chunk_size)?;
+
+    let eff_chunk_size = calculate_optimal_chunk_size(opts.chunk_size, file_size_hint)?;
 
     // Force streaming mode
     if !opts.stream {
@@ -141,14 +179,17 @@ pub fn encrypt_file_streaming(
             .parent()
             .ok_or(EncFileError::Invalid("output path has no parent"))?,
     )?;
-    let mut writer = tmp;
+    let mut writer = BufWriter::with_capacity(64 * 1024, tmp);
 
     // Write header
     writer.write_all(&(header_bytes.len() as u32).to_le_bytes())?;
     writer.write_all(&header_bytes)?;
 
-    // Stream encryption
-    let mut reader = File::open(input)?;
+    // Stream encryption with buffered I/O for better performance
+    // Use adaptive buffer size based on chunk size for optimal performance
+    let file = File::open(input)?;
+    let buffer_size = (eff_chunk_size / 4).clamp(64 * 1024, 512 * 1024); // 1/4 chunk size, 64KB-512KB range
+    let mut reader = BufReader::with_capacity(buffer_size, file);
     let mut buf = vec![0u8; eff_chunk_size];
 
     match opts.alg {
@@ -194,6 +235,9 @@ pub fn encrypt_file_streaming(
             let prefix = &stream.nonce_prefix;
             let mut counter = 0u32;
 
+            // Pre-allocate nonce buffer to avoid repeated allocations
+            let mut nonce_bytes = Vec::with_capacity(12);
+
             loop {
                 let n = reader.read(&mut buf)?;
                 // Mark final on EOF OR on a short read (< chunk size)
@@ -207,7 +251,8 @@ pub fn encrypt_file_streaming(
                 }
 
                 // Build 12-byte nonce = 8-byte prefix || 4-byte BE counter
-                let mut nonce_bytes = prefix.clone();
+                nonce_bytes.clear();
+                nonce_bytes.extend_from_slice(prefix);
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
                 counter = counter.wrapping_add(1);
 
@@ -229,13 +274,16 @@ pub fn encrypt_file_streaming(
                 }
             }
             buf.zeroize();
+            nonce_bytes.zeroize();
         }
     }
 
-    writer.as_file_mut().flush()?;
-    writer.as_file_mut().sync_all()?;
-    writer
-        .persist(&out_path)
+    writer.flush()?;
+    let tmp = writer
+        .into_inner()
+        .map_err(|e| EncFileError::Io(e.into_error()))?;
+    tmp.as_file().sync_all()?;
+    tmp.persist(&out_path)
         .map_err(|e| EncFileError::Io(e.error))?;
 
     // Zeroize derived key
@@ -260,6 +308,11 @@ fn parse_frame_from_slice(body: &[u8]) -> Result<(u8, usize, &[u8]), EncFileErro
         return Err(EncFileError::Malformed);
     }
 
+    // Validate frame size to prevent DoS attacks
+    if ct_len > crate::types::MAX_CHUNK_SIZE + crate::crypto::AEAD_TAG_LEN {
+        return Err(EncFileError::Invalid("frame size exceeds maximum allowed"));
+    }
+
     Ok((flags, ct_len, remaining))
 }
 
@@ -278,6 +331,11 @@ fn parse_frame_from_reader<R: Read>(reader: &mut R) -> Result<(u8, usize), EncFi
     let flags = frame_header[0];
     let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
 
+    // Validate frame size to prevent DoS attacks
+    if ct_len > crate::types::MAX_CHUNK_SIZE + crate::crypto::AEAD_TAG_LEN {
+        return Err(EncFileError::Invalid("frame size exceeds maximum allowed"));
+    }
+
     Ok((flags, ct_len))
 }
 
@@ -286,6 +344,7 @@ fn parse_frame_from_reader<R: Read>(reader: &mut R) -> Result<(u8, usize), EncFi
 ///
 /// This function validates the frame structure and ensures that `ct_len` does not exceed the available body data.
 /// This is a critical security check to prevent buffer overflows and other vulnerabilities.
+/// Uses buffer reuse for improved performance.
 pub fn decrypt_stream_into_vec(
     alg: AeadAlg,
     key: &[u8; 32],
@@ -340,6 +399,8 @@ pub fn decrypt_stream_into_vec(
             }
 
             let mut counter = 0u32;
+            // Pre-allocate nonce buffer for reuse
+            let mut nonce_bytes = Vec::with_capacity(12);
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
@@ -350,8 +411,9 @@ pub fn decrypt_stream_into_vec(
 
                 let is_final = (flags & FLAG_FINAL) != 0;
 
-                // Reconstruct nonce
-                let mut nonce_bytes = prefix.clone();
+                // Reconstruct nonce using reusable buffer
+                nonce_bytes.clear();
+                nonce_bytes.extend_from_slice(prefix);
                 nonce_bytes.extend_from_slice(&counter.to_be_bytes());
                 counter = counter.wrapping_add(1);
 
@@ -368,6 +430,9 @@ pub fn decrypt_stream_into_vec(
                     break;
                 }
             }
+
+            // Final cleanup
+            nonce_bytes.zeroize();
         }
     }
 
@@ -378,6 +443,7 @@ pub fn decrypt_stream_into_vec(
 ///
 /// This function reads streaming frames and decrypts them directly to the provided writer,
 /// maintaining constant memory usage regardless of the size of the encrypted data.
+/// Uses buffered I/O and buffer reuse for improved performance.
 pub fn decrypt_stream_to_writer<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
@@ -388,6 +454,12 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
     // Validate header-declared chunk size early, using unified policy
     validate_header_chunk_size(stream_info.chunk_size as usize)?;
 
+    // Use buffered I/O for better performance with adaptive buffer sizing
+    let expected_chunk_size = stream_info.chunk_size as usize;
+    let buffer_size = (expected_chunk_size / 4).clamp(64 * 1024, 512 * 1024);
+    let mut buf_reader = BufReader::with_capacity(buffer_size, reader);
+    let mut buf_writer = BufWriter::with_capacity(buffer_size, writer);
+
     match aead_alg {
         AeadAlg::XChaCha20Poly1305 => {
             let cipher = create_xchacha20poly1305_cipher(key)?;
@@ -397,12 +469,18 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
             let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
             let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
 
+            // Pre-allocate ciphertext buffer for reuse
+            let mut ct_buf = Vec::new();
+
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                let (flags, ct_len) = parse_frame_from_reader(reader)?;
+                let (flags, ct_len) = parse_frame_from_reader(&mut buf_reader)?;
 
-                let mut ct = vec![0u8; ct_len];
-                reader.read_exact(&mut ct).map_err(|e| {
+                // Reuse buffer, growing only if needed
+                if ct_buf.len() < ct_len {
+                    ct_buf.resize(ct_len, 0);
+                }
+                buf_reader.read_exact(&mut ct_buf[..ct_len]).map_err(|e| {
                     if e.kind() == std::io::ErrorKind::UnexpectedEof {
                         EncFileError::Malformed
                     } else {
@@ -414,25 +492,22 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
                 if is_final {
                     let pt = Zeroizing::new(
-                        dec.decrypt_last(ct.as_slice())
+                        dec.decrypt_last(&ct_buf[..ct_len])
                             .map_err(|_| EncFileError::Crypto)?,
                     );
-                    writer.write_all(&pt)?;
-
-                    // Plaintext buffer will be zeroized automatically on drop
-                    // (no explicit zeroize needed) -- zeroization is handled by the Zeroizing wrapper's Drop implementation
+                    buf_writer.write_all(&pt)?;
                     break;
                 } else {
                     let pt = Zeroizing::new(
-                        dec.decrypt_next(ct.as_slice())
+                        dec.decrypt_next(&ct_buf[..ct_len])
                             .map_err(|_| EncFileError::Crypto)?,
                     );
-                    writer.write_all(&pt)?;
-
-                    // Plaintext buffer will be zeroized automatically on drop
-                    // (no explicit zeroize needed)
+                    buf_writer.write_all(&pt)?;
                 }
             }
+
+            // Zeroize the reused ciphertext buffer
+            ct_buf.zeroize();
         }
 
         AeadAlg::Aes256GcmSiv => {
@@ -446,12 +521,19 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
             let mut counter = 0u32;
 
+            // Pre-allocate buffers for reuse
+            let mut ct_buf = Vec::new();
+            let mut nonce_bytes = Vec::with_capacity(12);
+
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
-                let (flags, ct_len) = parse_frame_from_reader(reader)?;
+                let (flags, ct_len) = parse_frame_from_reader(&mut buf_reader)?;
 
-                let mut ct = vec![0u8; ct_len];
-                reader.read_exact(&mut ct).map_err(|e| {
+                // Reuse ciphertext buffer, growing only if needed
+                if ct_buf.len() < ct_len {
+                    ct_buf.resize(ct_len, 0);
+                }
+                buf_reader.read_exact(&mut ct_buf[..ct_len]).map_err(|e| {
                     if e.kind() == std::io::ErrorKind::UnexpectedEof {
                         EncFileError::Malformed
                     } else {
@@ -462,29 +544,33 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 let is_final = (flags & FLAG_FINAL) != 0;
 
                 // Build nonce: 8-byte prefix + 4-byte counter
-                let nonce_bytes = Zeroizing::new({
-                    let mut bytes = Vec::with_capacity(12);
-                    bytes.extend_from_slice(prefix);
-                    bytes.extend_from_slice(&counter.to_be_bytes());
-                    bytes
-                });
+                nonce_bytes.clear();
+                nonce_bytes.extend_from_slice(prefix);
+                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
 
                 let pt = Zeroizing::new(
                     cipher
-                        .decrypt(GenericArray::from_slice(&nonce_bytes), ct.as_slice())
+                        .decrypt(GenericArray::from_slice(&nonce_bytes), &ct_buf[..ct_len])
                         .map_err(|_| EncFileError::Crypto)?,
                 );
 
-                writer.write_all(&pt)?;
-                // Sensitive material is zeroized automatically by Zeroizing
+                buf_writer.write_all(&pt)?;
+                // Zeroize nonce after use
+                nonce_bytes.zeroize();
                 counter = counter.wrapping_add(1);
 
                 if is_final {
                     break;
                 }
             }
+
+            // Zeroize reused buffers
+            ct_buf.zeroize();
+            nonce_bytes.zeroize();
         }
     }
 
+    // Ensure all buffered data is written
+    buf_writer.flush()?;
     Ok(())
 }

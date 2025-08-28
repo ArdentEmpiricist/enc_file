@@ -10,6 +10,13 @@ use zeroize::Zeroize;
 /// AEAD authentication tag length (16 bytes for all supported algorithms).
 pub const AEAD_TAG_LEN: usize = 16;
 
+/// Maximum allowed file size for processing (1 TB).
+/// This prevents potential DoS attacks and memory exhaustion.
+pub const MAX_FILE_SIZE: u64 = 1024 * 1024 * 1024 * 1024; // 1 TB
+
+/// Maximum allowed ciphertext length (slightly larger than max file size to account for overhead).
+pub const MAX_CIPHERTEXT_LEN: u64 = MAX_FILE_SIZE + 1024 * 1024; // 1 TB + 1 MB overhead
+
 /// Get the nonce length for a given AEAD algorithm.
 pub fn nonce_len_for(alg: AeadAlg) -> usize {
     match alg {
@@ -110,6 +117,22 @@ pub fn aead_decrypt(
                 .map_err(|_| EncFileError::Crypto)
         }
     }
+}
+
+/// Validate file size to prevent DoS attacks and excessive memory usage.
+pub fn validate_file_size(size: u64) -> Result<(), EncFileError> {
+    if size > MAX_FILE_SIZE {
+        return Err(EncFileError::Invalid("file size exceeds maximum allowed size"));
+    }
+    Ok(())
+}
+
+/// Validate ciphertext length to prevent DoS attacks.
+pub fn validate_ciphertext_length(len: u64) -> Result<(), EncFileError> {
+    if len > MAX_CIPHERTEXT_LEN {
+        return Err(EncFileError::Invalid("ciphertext size exceeds maximum allowed size"));
+    }
+    Ok(())
 }
 
 /// Securely zeroize a key after use.
