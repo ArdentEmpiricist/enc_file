@@ -53,7 +53,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use enc_file::{
-    AeadAlg, DEFAULT_CHUNK_SIZE, EncryptOptions, KdfParams, KeyMap, decrypt_file, encrypt_file,
+    AeadAlg, EncryptOptions, KdfParams, KeyMap, decrypt_file, encrypt_file,
     encrypt_file_streaming, load_keymap, save_keymap,
 };
 use getrandom::fill as getrandom;
@@ -94,6 +94,7 @@ struct EncArgs {
     #[arg(short = 'o', long = "out")]
     output: Option<std::path::PathBuf>,
 
+    /// Choose AEAD-Algorithm: xchacha = XChaCha20-Poly1305 (standard), aes = AES-256-GCM-SIV
     #[arg(short = 'a',long, value_enum, default_value_t = AlgChoice::Xchacha)]
     alg: AlgChoice,
 
@@ -109,8 +110,13 @@ struct EncArgs {
     #[arg(long)]
     stream: bool,
 
-    /// Chunk size for streaming mode (bytes). Default: 1 MiB.
-    #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
+    /// Maximum frame length in streaming mode.
+    /// Default (0): adaptive sizing based on total file size:
+    ///   • ≤ 1 MiB           → 64 KiB  
+    ///   • 1 MiB–100 MiB     → 1 MiB  
+    ///   • Files > 100 MiB   → scales up (max 8 MiB)  
+    /// Must be ≤ u32::MAX – 16 (32-bit length + 16 B tag).
+    #[arg(long, default_value_t = 0)]
     chunk_size: usize,
 
     /// Read password from file instead of interactive prompt

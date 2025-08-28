@@ -444,6 +444,17 @@ pub fn decrypt_stream_into_vec(
 /// This function reads streaming frames and decrypts them directly to the provided writer,
 /// maintaining constant memory usage regardless of the size of the encrypted data.
 /// Uses buffered I/O and buffer reuse for improved performance.
+///
+/// # Security Note
+/// 
+/// This function performs streaming decryption with immediate write-through to the provided
+/// writer. While this is efficient for memory usage, it means that partial cleartext may
+/// be written to the output before authentication failures are detected. For use cases
+/// requiring atomic writes (all-or-nothing decryption), consider using file-based APIs
+/// that can employ temporary files and atomic rename operations.
+///
+/// All intermediate buffers (ciphertext, nonces, plaintext) are properly zeroized
+/// on both success and error paths to prevent cleartext leakage in memory.
 pub fn decrypt_stream_to_writer<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
