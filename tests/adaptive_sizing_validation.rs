@@ -1,7 +1,8 @@
 //! Test that adaptive chunk sizing actually selects different chunk sizes
 //! based on file sizes and that the calculation function works as expected.
 
-use enc_file::{EncryptOptions, AeadAlg, encrypt_file_streaming};
+use enc_file::{EncryptOptions, AeadAlg};
+use enc_file::encrypt_file_streaming;
 use secrecy::SecretString;
 use std::fs;
 use tempfile::tempdir;
