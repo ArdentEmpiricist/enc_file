@@ -69,7 +69,7 @@ fn big_file_roundtrip_both_algs() {
         let enc_path = dir.path().join("out.enc");
         let back_path = dir.path().join("back.bin");
 
-        write_blob(&in_path, mib(2));
+        write_blob(&in_path, mib(50));
 
         let opts = EncryptOptions {
             alg,
