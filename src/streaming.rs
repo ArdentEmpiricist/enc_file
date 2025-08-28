@@ -116,6 +116,12 @@ pub fn encrypt_file_streaming(
     // Calculate optimal chunk size based on file size and user preference
     let file_metadata = std::fs::metadata(input).ok();
     let file_size_hint = file_metadata.map(|m| m.len());
+    
+    // Validate file size for security
+    if let Some(file_size) = file_size_hint {
+        crate::crypto::validate_file_size(file_size)?;
+    }
+    
     let eff_chunk_size = calculate_optimal_chunk_size(opts.chunk_size, file_size_hint)?;
 
     // Force streaming mode
@@ -298,6 +304,11 @@ fn parse_frame_from_slice(body: &[u8]) -> Result<(u8, usize, &[u8]), EncFileErro
         return Err(EncFileError::Malformed);
     }
 
+    // Validate frame size to prevent DoS attacks
+    if ct_len > crate::types::MAX_CHUNK_SIZE + crate::crypto::AEAD_TAG_LEN {
+        return Err(EncFileError::Invalid("frame size exceeds maximum allowed"));
+    }
+
     Ok((flags, ct_len, remaining))
 }
 
@@ -315,6 +326,11 @@ fn parse_frame_from_reader<R: Read>(reader: &mut R) -> Result<(u8, usize), EncFi
 
     let flags = frame_header[0];
     let ct_len = u32::from_be_bytes(frame_header[1..5].try_into().unwrap()) as usize;
+
+    // Validate frame size to prevent DoS attacks
+    if ct_len > crate::types::MAX_CHUNK_SIZE + crate::crypto::AEAD_TAG_LEN {
+        return Err(EncFileError::Invalid("frame size exceeds maximum allowed"));
+    }
 
     Ok((flags, ct_len))
 }

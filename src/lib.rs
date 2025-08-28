@@ -205,6 +205,10 @@ pub fn decrypt_bytes(input: &[u8], password: SecretString) -> Result<Vec<u8>, En
     if body.len() as u64 != header.ct_len {
         return Err(EncFileError::Malformed);
     }
+    
+    // Validate ciphertext size for security
+    crypto::validate_ciphertext_length(header.ct_len)?;
+    
     let pt = crypto::aead_decrypt(aead_alg, &key, &header.nonce, body)?;
     let mut key_z = key;
     crypto::zeroize_key(&mut key_z);
@@ -224,6 +228,11 @@ pub fn encrypt_file(
     if opts.stream {
         return encrypt_file_streaming(input, output, password, opts);
     }
+    
+    // Validate file size before reading into memory
+    let file_metadata = std::fs::metadata(input)?;
+    crypto::validate_file_size(file_metadata.len())?;
+    
     let mut data = Vec::new();
     File::open(input)?.read_to_end(&mut data)?;
     let out_bytes = encrypt_bytes(&data, password, &opts)?;
@@ -334,6 +343,10 @@ pub fn decrypt_file(
     } else {
         // Non-streaming mode: read the body into memory with buffered I/O
         let expected_body_len = header.ct_len as usize;
+        
+        // Validate ciphertext size for security
+        crypto::validate_ciphertext_length(header.ct_len)?;
+        
         let mut body = vec![0u8; expected_body_len];
         
         // Use buffered reader for better performance on large non-streaming files
