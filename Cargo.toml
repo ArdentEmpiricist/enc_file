@@ -1,6 +1,6 @@
 [package]
 name = "enc_file"
-version = "0.5.15"
+version = "0.5.16"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
