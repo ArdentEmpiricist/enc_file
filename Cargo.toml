@@ -4,13 +4,14 @@ version = "0.5.16"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-description = "Password-based file encryption tool with a versioned header, AEAD, Argon2id KDF, and streaming mode. Library + CLI."
+description = "Password-based file encryption tool with a versioned header, AEAD, Argon2id KDF, and streaming mode. Library + CLI + GUI."
 homepage = "https://crates.io/crates/enc_file"
 documentation = "https://docs.rs/enc_file/latest/enc_file/"
 repository = "https://github.com/ArdentEmpiricist/enc_file"
 keywords = [
     "encryption",
     "command-line",
+    "gui",
     "chacha20poly1305",
     "aes-gcm",
     "blake3",
@@ -29,6 +30,15 @@ path = "src/lib.rs"
 [[bin]]
 name = "enc-file"
 path = "src/main.rs"
+
+[[bin]]
+name = "enc-file-gui"
+path = "src/gui_main.rs"
+required-features = ["gui"]
+
+[features]
+default = []
+gui = ["eframe", "egui", "egui_extras", "rfd", "tokio", "env_logger"]
 
 [dependencies]
 # Serialization
@@ -73,6 +83,14 @@ hex = "0.4"
 
 # CPU detection for KDF parallelism defaults
 num_cpus = "1"
+
+# GUI dependencies (optional)
+eframe = { version = "0.29", optional = true }
+egui = { version = "0.29", optional = true }
+egui_extras = { version = "0.29", features = ["file"], optional = true }
+rfd = { version = "0.15", optional = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "sync"], optional = true }
+env_logger = { version = "0.11", optional = true }
 
 [dev-dependencies]
 proptest = "1"
