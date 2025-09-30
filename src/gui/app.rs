@@ -47,17 +47,12 @@ pub struct EncFileApp {
     runtime: Option<Arc<tokio::runtime::Runtime>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum AppMode {
+    #[default]
     Encrypt,
     Decrypt,
     Hash,
-}
-
-impl Default for AppMode {
-    fn default() -> Self {
-        AppMode::Encrypt
-    }
 }
 
 impl EncFileApp {
@@ -509,10 +504,8 @@ impl EncFileApp {
                             ui.output_mut(|o| o.copied_text = result.clone());
                         }
                     }
-                } else {
-                    if ui.button("📋 Copy to Clipboard").clicked() {
-                        ui.output_mut(|o| o.copied_text = result.clone());
-                    }
+                } else if ui.button("📋 Copy to Clipboard").clicked() {
+                    ui.output_mut(|o| o.copied_text = result.clone());
                 }
 
                 if ui.button("🗑 Clear").clicked() {
@@ -624,7 +617,7 @@ impl EncFileApp {
         let options = EncryptOptions {
             alg: self.algorithm,
             kdf: KdfAlg::Argon2id,
-            kdf_params: self.kdf_params.clone(),
+            kdf_params: self.kdf_params,
             armor: self.armor,
             force: self.force_overwrite,
             stream: self.use_streaming,

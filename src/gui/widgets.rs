@@ -8,11 +8,11 @@ pub fn file_picker_button(
 ) -> bool {
     let mut changed = false;
     
-    if ui.button(text).clicked() {
-        if let Some(path) = rfd::FileDialog::new().pick_file() {
-            *current_path = Some(path);
-            changed = true;
-        }
+    if ui.button(text).clicked()
+        && let Some(path) = rfd::FileDialog::new().pick_file()
+    {
+        *current_path = Some(path);
+        changed = true;
     }
     
     changed

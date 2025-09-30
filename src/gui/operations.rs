@@ -70,12 +70,11 @@ impl Operation {
         });
         
         // Handle force overwrite by removing the file if it exists
-        if force_overwrite {
-            if let Some(ref output_path) = output {
-                if output_path.exists() {
-                    let _ = std::fs::remove_file(output_path);
-                }
-            }
+        if force_overwrite
+            && let Some(ref output_path) = output
+            && output_path.exists()
+        {
+            let _ = std::fs::remove_file(output_path);
         }
         
         let _ = sender.send(OperationMessage::Progress {
@@ -108,7 +107,7 @@ impl Operation {
         });
         
         let _ = sender.send(OperationMessage::Progress {
-            message: format!("Computing {} hash...", format!("{:?}", algorithm)),
+            message: format!("Computing {algorithm:?} hash..."),
             progress: Some(0.5),
         });
         
