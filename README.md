@@ -51,6 +51,8 @@ cargo install enc_file --features gui
 # Then run: enc-file-gui
 ```
 
+Or download pre-built binaries (including GUI) from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page.
+
 Or clone and build locally:
 
 ```bash
@@ -66,7 +68,7 @@ cargo build --release --features gui
 cargo install enc_file
 ```
 
-Or download pre-built binaries from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page.
+Or download pre-built binaries from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page (includes both CLI and GUI versions).
 
 ### Library
 

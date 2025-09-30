@@ -32,6 +32,7 @@ wildcards = "warn"
 skip = [
     # These crates have legitimate reasons for having multiple versions
     { name = "getrandom", version = "*" },
+    { name = "rand_core", version = "*" },
     { name = "wasi", version = "*" },
     # Windows-specific crates often have version conflicts due to ecosystem evolution
     { name = "windows-sys", version = "*" },
@@ -44,6 +45,16 @@ skip = [
     { name = "windows_x86_64_gnu", version = "*" },
     { name = "windows_x86_64_gnullvm", version = "*" },
     { name = "windows_x86_64_msvc", version = "*" },
+    # Additional common duplicates from GUI dependencies
+    { name = "bitflags", version = "*" },
+    { name = "hashbrown", version = "*" },
+    { name = "linux-raw-sys", version = "*" },
+    { name = "regex-syntax", version = "*" },
+    { name = "regex-automata", version = "*" },
+    { name = "unicode-ident", version = "*" },
+    { name = "syn", version = "*" },
+    { name = "proc-macro2", version = "*" },
+    { name = "quote", version = "*" },
 ]
 # Explicitly denied crates
 deny = []
