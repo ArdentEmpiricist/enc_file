@@ -498,14 +498,14 @@ impl EncFileApp {
                 if let Some(AppMode::Hash) = self.last_completed_operation {
                     if ui.button("📋 Copy Hash to clipboard").clicked() {
                         if let Some(hash_value) = self.extract_hash_from_result(result) {
-                            ui.output_mut(|o| o.copied_text = hash_value);
+                            ui.ctx().copy_text(hash_value);
                         } else {
                             // Fallback to copying entire result if hash extraction fails
-                            ui.output_mut(|o| o.copied_text = result.clone());
+                            ui.ctx().copy_text(result.clone());
                         }
                     }
                 } else if ui.button("📋 Copy to Clipboard").clicked() {
-                    ui.output_mut(|o| o.copied_text = result.clone());
+                    ui.ctx().copy_text(result.clone());
                 }
 
                 if ui.button("🗑 Clear").clicked() {
