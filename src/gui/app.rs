@@ -39,6 +39,7 @@ pub struct EncFileApp {
     progress: ProgressState,
     operation_result: Option<String>,
     error_message: Option<String>,
+    last_completed_operation: Option<AppMode>,
     
     // Runtime state
     operation_handle: Option<tokio::task::JoinHandle<()>>,
@@ -425,6 +426,14 @@ impl EncFileApp {
         }
     }
     
+    pub fn extract_hash_from_result(&self, result: &str) -> Option<String> {
+        // Hash results have format: "Hash calculated successfully!\n\nAlgorithm: ...\nFile: ...\nHash: <hash_value>"
+        if let Some(hash_line) = result.lines().find(|line| line.starts_with("Hash: ")) {
+            return hash_line.strip_prefix("Hash: ").map(|s| s.to_string());
+        }
+        None
+    }
+    
     fn draw_results_ui(&mut self, ui: &mut egui::Ui) {
         if let Some(ref result) = self.operation_result.clone() {
             ui.separator();
@@ -447,11 +456,25 @@ impl EncFileApp {
             });
             
             ui.horizontal(|ui| {
-                if ui.button("📋 Copy to Clipboard").clicked() {
-                    ui.output_mut(|o| o.copied_text = result.clone());
+                // Handle hash operations differently
+                if let Some(AppMode::Hash) = self.last_completed_operation {
+                    if ui.button("📋 Copy hash to clipboard").clicked() {
+                        if let Some(hash_value) = self.extract_hash_from_result(result) {
+                            ui.output_mut(|o| o.copied_text = hash_value);
+                        } else {
+                            // Fallback to copying entire result if hash extraction fails
+                            ui.output_mut(|o| o.copied_text = result.clone());
+                        }
+                    }
+                } else {
+                    if ui.button("📋 Copy to Clipboard").clicked() {
+                        ui.output_mut(|o| o.copied_text = result.clone());
+                    }
                 }
+                
                 if ui.button("🗑 Clear").clicked() {
                     self.operation_result = None;
+                    self.last_completed_operation = None;
                 }
             });
         }
@@ -513,12 +536,14 @@ impl EncFileApp {
                     self.progress.reset();
                     self.operation_result = Some(result);
                     self.error_message = None;
+                    self.last_completed_operation = Some(self.mode);
                     self.result_receiver = None;
                 }
                 OperationMessage::Error(error) => {
                     self.progress.reset();
                     self.error_message = Some(error);
                     self.operation_result = None;
+                    self.last_completed_operation = None;
                     self.result_receiver = None;
                 }
             }
