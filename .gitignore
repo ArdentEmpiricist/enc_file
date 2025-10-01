@@ -1,4 +1,4 @@
 /target
-*.crpt
+*.enc
 key.file
 .DS_Store
