@@ -77,7 +77,7 @@ fn tamper_chunk_size(file_bytes: Vec<u8>, new_chunk: u32) -> Vec<u8> {
         let cs_key = Value::Text("chunk_size".to_string());
 
         // Use helper function to find stream entry safely
-        if let Some(stream_value) = find_map_value_mut(top.as_mut_slice(), &stream_key) {
+        if let Some(stream_value) = find_map_value_mut(top, &stream_key) {
             if let Value::Map(stream_map) = stream_value {
                 // Update chunk_size in existing stream map
                 update_or_insert_map_key(stream_map, cs_key, Value::Integer(new_chunk.into()));
