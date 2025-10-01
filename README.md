@@ -18,24 +18,20 @@ Password-based, authenticated file encryption with a small versioned header and 
 
 ## Features
 
-- **Cross-platform GUI** with modern interface (optional)
-- **Command-line interface** for automation and scripting
-- **Rust library** for programmatic integration
-- **File and byte array encryption/decryption**
-- **Streaming encryption** for large files (constant memory usage)
-- **Multiple AEAD algorithms**: XChaCha20-Poly1305, AES-256-GCM-SIV
-- **Password-based key derivation** using Argon2id
-- **Key map management** for named symmetric keys
-- **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32
-- **ASCII armor** for encrypted data (Base64 encoding)
-
+- **Cross-platform GUI** with modern interface (optional).
+- **Command-line interface** for automation and scripting.
+- **Rust library** for programmatic integration.
+- **File and byte array encryption/decryption**.
+- **Multiple AEAD algorithms**: XChaCha20-Poly1305 (default), AES-256-GCM-SIV.
+- **Streaming mode** for large files (constant memory; configurable `chunk_size`).
+- **Password-based key derivation** using Argon2id.
 - **Argon2id** password KDF (per-file salt + stored parameters).
-- AEAD: **XChaCha20-Poly1305** (default) or **AES-256-GCM-SIV**.
+- **Key map management** for named symmetric keys.
+- **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32.
+- Optional  **ASCII armor** for encrypted data (Base64 encoding).
 - Compact **binary header** (magic, version, alg, KDF kind/params, salt, nonce, length).
-- Optional **ASCII armor** for transport.
 - **Streaming mode** for large files (constant memory; configurable `chunk_size`).
 - Use `secrecy` wrappers and zeroize buffers.
-- Compute a file hash and print it as hex.
 - Usable as **library**, **GUI** and **CLI**.
 
 ---
