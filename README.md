@@ -83,6 +83,10 @@ enc_file = "0.5"
 
 The GUI provides an intuitive interface for file encryption, decryption, and hashing:
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/refs/heads/main/assets/gui.png" alt="enc_file Logo" width="200"/>
+</p>
+
 - **Modern Interface**: Clean, responsive design that works across platforms
 - **Basic Mode**: Simple file selection, password entry, and one-click operations
 - **Advanced Options**: Expandable panel with:
