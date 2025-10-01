@@ -4,6 +4,7 @@
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/ArdentEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
+[![Rust Edition](https://img.shields.io/badge/rust-2024-orange)](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html)
 
 # enc_file
 
@@ -11,45 +12,77 @@
   <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/main/assets/logo.png" alt="enc_file Logo" width="200"/>
 </p>
 
-Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library**, **CLI**, and **GUI application**.
+**Password-based, authenticated file encryption with a small versioned header and Argon2id KDF.** Ships as a **library**, **CLI**, and **GUI application**.
 
 > [!CAUTION]
-> **Security note**: This project is **neither** audited **nor** reviewed. It protects data at rest but cannot defend a compromised host or advanced side channels. Use at your own risk. For important or sensitive information, use Veracrypt (or similar) instead.
+> **Security note**: This project is **neither** audited **nor** reviewed. It protects data at rest but cannot defend against a compromised host or advanced side channels. Use at your own risk. For highly sensitive information, use audited tools like [VeraCrypt](https://www.veracrypt.fr/) or [age](https://github.com/FiloSottile/age).
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+  - [GUI Application](#gui-application)
+  - [CLI Tool](#cli-tool)
+  - [Library](#library)
+- [GUI Usage](#gui-usage)
+- [CLI Usage](#cli-usage)
+  - [Encrypt](#encrypt)
+  - [Decrypt](#decrypt)
+  - [Hash](#hash)
+  - [Key Map](#key-map-optional)
+- [Library Usage](#library-usage)
+  - [Encrypt/Decrypt Bytes](#encrypt--decrypt-bytes)
+  - [Encrypt/Decrypt Files](#encrypt--decrypt-files)
+  - [Streaming Encryption](#streaming-encryption)
+  - [Hash Helpers](#hash-helpers)
+  - [Keyed BLAKE3 (MAC-style)](#keyed-blake3-mac-style)
+  - [Key Map Helpers](#key-map-helpers)
+- [Hash Algorithms](#hash-algorithms)
+- [Error Handling](#error-handling)
+- [Technical Details](#technical-details)
+  - [KDF Defaults and Bounds](#kdf-defaults-and-bounds)
+  - [Streaming and Armor](#streaming-and-armor)
+  - [Compatibility Policy](#compatibility-policy)
+- [Security Best Practices](#security-best-practices)
+- [Tips](#tips)
+- [License](#license)
+- [Contributing](#contributing)
+
+---
 
 ## Features
 
-- **Cross-platform GUI** with modern interface (optional).
+- **Cross-platform GUI** with modern, intuitive interface (optional feature).
 - **Command-line interface** for automation and scripting.
 - **Rust library** for programmatic integration.
 - **File and byte array encryption/decryption**.
 - **Multiple AEAD algorithms**: XChaCha20-Poly1305 (default), AES-256-GCM-SIV.
-- **Streaming mode** for large files (constant memory; configurable `chunk_size`).
-- **Password-based key derivation** using Argon2id.
-- **Argon2id** password KDF (per-file salt + stored parameters).
+- **Streaming mode** for large files with constant memory usage and configurable `chunk_size`.
+- **Password-based key derivation** using Argon2id with hardened defaults.
 - **Key map management** for named symmetric keys.
-- **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32.
-- Optional  **ASCII armor** for encrypted data (Base64 encoding).
-- Compact **binary header** (magic, version, alg, KDF kind/params, salt, nonce, length).
-- **Streaming mode** for large files (constant memory; configurable `chunk_size`).
-- Use `secrecy` wrappers and zeroize buffers.
-- Usable as **library**, **GUI** and **CLI**.
+- **Flexible hashing API** supporting BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32.
+- **ASCII armor** for encrypted data (Base64 encoding).
+- **Compact binary header** (magic, version, algorithm IDs, KDF parameters, salt, nonce, length).
+- **Secure by default**: Uses `secrecy` wrappers and zeroizes sensitive buffers.
 
 ---
 
-## Install
+## Installation
 
 ### GUI Application
 
-To build and install the GUI version:
+**Option 1: Install from crates.io**
 
 ```bash
 cargo install enc_file --features gui
 # Then run: enc-file-gui
 ```
 
-Or download pre-built binaries (including GUI) from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page.
+**Option 2: Download pre-built binaries**
 
-Or clone and build locally:
+Download from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page (includes both CLI and GUI versions for Windows, macOS, and Linux).
+
+**Option 3: Build from source**
 
 ```bash
 git clone https://github.com/ArdentEmpiricist/enc_file.git
@@ -60,11 +93,15 @@ cargo build --release --features gui
 
 ### CLI Tool
 
+**Option 1: Install from crates.io**
+
 ```bash
 cargo install enc_file
 ```
 
-Or download pre-built binaries from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page (includes both CLI and GUI versions).
+**Option 2: Download pre-built binaries**
+
+Download from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page.
 
 ### Library
 
@@ -80,10 +117,12 @@ enc_file = "0.6"
 The GUI provides an intuitive interface for file encryption, decryption, and hashing:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/refs/heads/main/assets/gui.png" alt="enc_file Logo" width="auto"/>
+  <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/refs/heads/main/assets/gui.png" alt="enc_file GUI Screenshot" width="auto"/>
 </p>
 
-- **Modern Interface**: Clean, responsive design that works across platforms
+### GUI Features
+
+- **Modern Interface**: Clean, responsive design that works across all platforms
 - **Basic Mode**: Simple file selection, password entry, and one-click operations
 - **Advanced Options**: Expandable panel with:
   - Algorithm selection (XChaCha20-Poly1305, AES-256-GCM-SIV)
@@ -93,46 +132,15 @@ The GUI provides an intuitive interface for file encryption, decryption, and has
   - KDF parameter tuning (memory cost, iterations, parallelism)
 - **Progress Indication**: Real-time progress bars and status messages
 - **Results Display**: Copyable output with hash values and file paths
-- **Password Strength**: Visual indicator for password security
-
-### GUI Features
-
-- **Encrypt Mode**: Select files, set passwords, choose algorithms
-- **Decrypt Mode**: Decrypt files with automatic output path detection
-- **Hash Mode**: Calculate file hashes with multiple algorithm support
-- **Cross-Platform**: Runs on Windows, macOS, and Linux
+- **Password Strength Indicator**: Visual feedback for password security
 - **File Browser Integration**: Native file picker dialogs
 
-You can install **enc-file** in several ways:
+### Available Operations
 
-### From crates.io (requires Rust toolchain)
-
-```bash
-cargo install enc-file
-```
-
-### From GitHub Releases (prebuilt binaries)
-
-1. Visit the [Releases page](https://github.com/ArdentEmpiricist/enc_file/releases).
-2. Download the binary for your platform.
-3. Place it in a directory in your `PATH`.
-
-### From source
-
-```bash
-# from source
-cargo build --release
-# binary
-target/release/enc-file --help
-```
-
-Add to a project as a library:
-
-```toml
-# Cargo.toml
-[dependencies]
-enc_file = "0.5.16"
-```
+- **Encrypt Mode**: Select files, set passwords, choose algorithms, and configure advanced options
+- **Decrypt Mode**: Decrypt files with automatic output path detection or custom output paths
+- **Hash Mode**: Calculate file hashes with support for multiple algorithms
+- **Cross-Platform**: Runs on Windows, macOS, and Linux
 
 ---
 
@@ -150,32 +158,86 @@ Subcommands:
 
 ### Encrypt
 
+**Simple usage** (prompts for password, outputs to same directory with `.enc` extension):
+
 ```bash
-# Simple: prompts for password and outputs secret.pdf.enc in same directory
 enc-file enc --in secret.pdf
 ```
 
-```bash
-# Specify output filename, use AES-256-GCM-SIV and read password from file <PATH>
-# Use shortcuts -i for --in and -o for --out
-enc-file enc -i secret.pdf -o hidden.enc -a aes -p <PATH> 
-```
+**Advanced usage** with custom output, algorithm selection, and password file:
 
 ```bash
-Options of interest:
+# Use AES-256-GCM-SIV and read password from file
+enc-file enc -i secret.pdf -o hidden.enc -a aes -p /path/to/password.txt
+```
+
+**Streaming mode** for large files:
+
+```bash
+# Enable streaming with custom chunk size
+enc-file enc -i large_video.mp4 --stream --chunk-size 2097152
+```
+
+**Available options**:
+  **Available options**:
+
+```
   -i, --in <file>            Input file (required)
-  -o, --out <file>           Output file
-  -a, --alg <algorithm>      AEAD algorithm (xchacha default, aes)
-      --stream               Enable streaming mode for large inputs
-      --chunk-size <bytes>   Maximum frame length in streaming mode.
-                             Default (0): adaptive sizing based on total file size:
-                               • ≤ 1 MiB           → 64 KiB  
-                               • 1 MiB–100 MiB     → 1 MiB  
-                               • Files > 100 MiB   → scales up (max 8 MiB)  
-                             Must be ≤ u32::MAX – 16 (32-bit length + 16 B tag).
-  -f, --force                Overwrite output if file exists
-      --armor                ASCII-armor output (streaming not supported)
+  -o, --out <file>           Output file (default: input + ".enc")
+  -a, --alg <algorithm>      AEAD algorithm (xchacha [default], aes)
+      --stream               Enable streaming mode for large files
+      --chunk-size <bytes>   Chunk size in streaming mode
+                             Default (0): adaptive sizing based on file size:
+                               • ≤ 1 MiB         → 64 KiB  
+                               • 1 MiB–100 MiB   → 1 MiB  
+                               • > 100 MiB       → scales up to 8 MiB max
+                             Must be ≤ 4,294,967,279 (u32::MAX - 16)
+  -f, --force                Overwrite output if it exists
+      --armor                ASCII-armor output (Base64; streaming not supported)
+  -p, --password-file <path> Read password from file (trailing newline trimmed)
+```
+
+### Decrypt
+
+**Simple usage**:
+
+```bash
+enc-file dec --in secret.enc
+```
+
+**With custom output**:
+
+```bash
+# Use --force (or -f) to overwrite existing files
+enc-file dec --in secret.enc --out secret.pdf --force
+```
+
+**Available options**:
+
+```
+  -i, --in <file>            Input file (required)
+  -o, --out <file>           Output file (default: auto-detected)
   -p, --password-file <path> Read password from file
+  -f, --force                Overwrite output if it exists
+```
+
+### Hash
+
+**Default** (BLAKE3):
+
+```bash
+enc-file hash README.md
+```
+
+**Specific algorithm**:
+
+```bash
+enc-file hash README.md --alg sha256
+```
+
+See [Hash Algorithms](#hash-algorithms) section for all supported algorithms.
+
+### Key Map (optional)
 ```
 
 ### Decrypt
@@ -270,24 +332,24 @@ let out = encrypt_file_streaming(Path::new("big.dat"), None, pw, opts)?;
 
 ### Hash helpers
 
-### Supported Hash Algorithms
+### Hash Algorithms
 
 Both the CLI and library support multiple hashing algorithms for files and byte slices:
 
-| Algorithm            | CLI `--alg` value(s)                                      | Output length |
-|----------------------|-----------------------------------------------------------|---------------|
-| **BLAKE3**           | `blake3`                                                  | 32 bytes      |
-| **BLAKE2b-512**      | `blake2b`                                                 | 64 bytes      |
-| **SHA-256**          | `sha256`                                                  | 32 bytes      |
-| **SHA-512**          | `sha512`                                                  | 64 bytes      |
-| **SHA3-256**         | `sha3-256`, `sha3256`, `sha3_256`                         | 32 bytes      |
-| **SHA3-512**         | `sha3-512`, `sha3512`, `sha3_512`                         | 64 bytes      |
-| **XXH3-64**          | `xxh3-64`, `xxh364`                                       | 8 bytes       |
-| **XXH3-128**         | `xxh3-128`, `xxh3128`                                     | 16 bytes      |
-| **CRC32**            | `crc32`                                                   | 4 bytes       |
+| Algorithm            | CLI `--alg` value(s)                                      | Output length | Cryptographic |
+|----------------------|-----------------------------------------------------------|---------------|---------------|
+| **BLAKE3**           | `blake3` (default)                                        | 32 bytes      | ✓             |
+| **BLAKE2b-512**      | `blake2b`                                                 | 64 bytes      | ✓             |
+| **SHA-256**          | `sha256`                                                  | 32 bytes      | ✓             |
+| **SHA-512**          | `sha512`                                                  | 64 bytes      | ✓             |
+| **SHA3-256**         | `sha3-256`, `sha3256`, `sha3_256`                         | 32 bytes      | ✓             |
+| **SHA3-512**         | `sha3-512`, `sha3512`, `sha3_512`                         | 64 bytes      | ✓             |
+| **XXH3-64**          | `xxh3-64`, `xxh364`                                       | 8 bytes       | ✗             |
+| **XXH3-128**         | `xxh3-128`, `xxh3128`                                     | 16 bytes      | ✗             |
+| **CRC32**            | `crc32`                                                   | 4 bytes       | ✗             |
 
 > [!CAUTION]
-> XXH3 and CRC32 are non-cryptographic! Use with care.
+> **XXH3 and CRC32 are non-cryptographic!** They provide fast checksums for data integrity but offer no security guarantees. Do not use them for security-critical applications.
 
 **CLI Example**:
 
@@ -355,71 +417,155 @@ assert_eq!(loaded, km);
 
 ## Error handling
 
-All fallible APIs return `Result<_, EncFileError>`. The error type is trait-based (`thiserror::Error`) and covers all expected failures without panics.
+All fallible APIs return `Result<_, EncFileError>`. The error type implements `thiserror::Error` and covers all expected failures without panicking.
 
-**Error variants:**
+**Error variants**:
 
-- `Io(std::io::Error)`: I/O failures (file read/write issues)
-- `Crypto`: AEAD encryption/decryption failures (bad password, tampering)
-- `UnsupportedVersion(u16)`: File format version not supported
-- `UnsupportedAead(u8)`: AEAD algorithm ID not supported
-- `UnsupportedKdf(u8)`: Password KDF algorithm ID not supported
-- `Malformed`: Corrupt or invalid file structure
-- `Invalid(&'static str)`: Invalid argument or operation (e.g. streaming with keymap)
-- `Serde(serde_cbor::Error)`: Serialization errors (CBOR encoding/decoding)
+- `Io(std::io::Error)`: I/O failures (file read/write issues, permissions)
+- `Crypto`: AEAD encryption/decryption failures (wrong password, data tampering, authentication failure)
+- `UnsupportedVersion(u16)`: File format version not supported by this version
+- `UnsupportedAead(u8)`: AEAD algorithm ID not recognized
+- `UnsupportedKdf(u8)`: Password KDF algorithm ID not recognized
+- `Malformed`: Corrupt or invalid file structure (truncated, missing headers)
+- `Invalid(&'static str)`: Invalid argument or operation (e.g., streaming with armor, invalid chunk size)
+- `Cbor(ciborium::de::Error)`: CBOR deserialization errors
+- `CborSer(ciborium::ser::Error)`: CBOR serialization errors
 
-All errors are returned as `Err(EncFileError)`; they never panic for expected failures.  
-See library and CLI tests for examples of error handling.
+All errors are returned as `Err(EncFileError)` and never panic for expected failures.
 
 ---
 
-## KDF defaults and bounds
+## Technical Details
 
-This library uses **Argon2id** for password-based key derivation with hardened defaults:
+### KDF defaults and bounds
 
-- **Time cost**: 3 iterations (minimum)
-- **Memory cost**: 64 MiB (minimum)  
-- **Parallelism**: min(4, number of CPU cores)
+### KDF defaults and bounds
 
-These parameters are enforced at the library level. The CLI uses compliant defaults automatically.
+This library uses **Argon2id** for password-based key derivation with hardened, security-focused defaults:
 
-## Streaming and armor
+- **Time cost (iterations)**: 3 passes (minimum recommended for 2024+)
+- **Memory cost**: 64 MiB (65,536 KiB) minimum
+- **Parallelism**: min(4, number of CPU cores) to balance performance and DoS prevention
+
+These parameters are enforced at the library level and provide strong protection against brute-force attacks while maintaining reasonable performance. The CLI uses compliant defaults automatically.
+
+**Why these values?**
+- Higher memory cost makes GPU/ASIC attacks more expensive
+- Multiple iterations increase computational cost
+- Limited parallelism prevents resource exhaustion attacks
+
+### Streaming and armor
 
 - **Streaming mode** provides constant memory usage for large files using chunked framing
-- **ASCII armor is ignored in streaming mode** - only non-streaming payloads can be armored
-- Maximum chunk size is `u32::MAX - 16` bytes due to 32-bit frame length + 16-byte AEAD tag
+- **ASCII armor is not compatible with streaming mode** - only non-streaming payloads can be armored
+- Maximum chunk size is **4,294,967,279 bytes** (u32::MAX - 16) due to 32-bit frame length + 16-byte AEAD tag
+- Adaptive chunk sizing automatically selects optimal chunk sizes based on file size when `--chunk-size 0` is used
 
-## Compatibility policy
+### Compatibility policy
 
-This library maintains backward compatibility for reading encrypted files across versions (beginning from 0.5).
-**Backward-compatible format extensions** (optional header fields) may be added between minor releases.
-Existing files remain decryptable by newer versions.
+This library maintains **backward compatibility** for reading encrypted files across versions (starting from v0.5).
+
+- Files encrypted with older versions can be decrypted by newer versions
+- Backward-compatible format extensions (optional header fields) may be added between minor releases
+- Breaking changes to the file format will result in a major version bump
+- The `version` field in the header enables graceful handling of format changes
+
+---
+
+## Security Best Practices
+
+While `enc_file` uses strong cryptography, security depends on proper usage:
+
+### Password Guidelines
+
+- **Use strong, unique passwords**: Minimum 16+ characters with mixed case, numbers, and symbols
+- **Use a password manager** to generate and store passwords securely
+- **Never reuse passwords** across different files or services
+- **Avoid dictionary words** or predictable patterns
+
+### Operational Security
+
+- **Secure password entry**: Use `--password-file` carefully; ensure file permissions are restrictive (`chmod 600`)
+- **Clean up**: Delete password files after use if no longer needed
+- **Verify decryption**: Always test that encrypted files can be decrypted before deleting originals
+- **Secure deletion**: Use `shred` or similar tools to securely delete plaintext files after encryption
+
+### Threat Model Limitations
+
+This tool is designed for **data-at-rest protection**. It does NOT protect against:
+
+- ❌ **Compromised host**: Malware, keyloggers, or rootkits can steal passwords and keys
+- ❌ **Side-channel attacks**: Power analysis, timing attacks (use hardware security modules for high-security needs)
+- ❌ **Memory forensics**: Plaintext may temporarily reside in RAM during operation
+- ❌ **Rubber-hose cryptanalysis**: Physical coercion to reveal passwords
+
+### When to Use Audited Alternatives
+
+For highly sensitive data or compliance requirements, consider audited tools:
+- **[VeraCrypt](https://www.veracrypt.fr/)**: Full disk encryption, audited
+- **[age](https://github.com/FiloSottile/age)**: Modern file encryption, reviewed
+- **[GPG](https://gnupg.org/)**: Industry standard, long-term support
 
 ---
 
 ## Tips
 
-- Use *streaming* for large files to keep memory predictable.
-- Consider `--armor` when moving ciphertexts through systems that mangle binaries.
-- For CLI automation, prefer `--password-file` over interactive prompts.
+- **Use streaming mode** (`--stream`) for files larger than available RAM to keep memory usage constant
+- **Enable ASCII armor** (`--armor`) when transferring files through systems that might corrupt binary data
+- **For CLI automation**, prefer `--password-file` over interactive prompts
+- **Test decryption** immediately after encryption to verify the file and password are correct
+- **Backup important files** before encryption, and verify successful decryption before deleting originals
+- **Use specific algorithms** when needed - XChaCha20-Poly1305 (default) for general use, AES-256-GCM-SIV for AES-NI hardware acceleration
+- **Adjust KDF parameters** only if you understand the security implications
+- **Check file integrity** using the hash command before and after transfer
 
 ---
 
 ## License
 
-Licensed under either of
+Licensed under either of:
 
 - [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
 - [MIT license](LICENSE)
 
 at your option.
 
+### Contribution
+
 Any contribution intentionally submitted for inclusion in this work shall be
 dual licensed as above, without any additional terms or conditions.
 
 ---
 
-**Note on names**
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Open an issue first** for major changes to discuss your proposal
+2. **Follow Rust conventions**: Run `cargo fmt` and `cargo clippy` before submitting
+3. **Add tests** for new functionality
+4. **Update documentation** including README and doc comments
+5. **Keep commits atomic** with clear, descriptive messages
+
+See the [Issues](https://github.com/ArdentEmpiricist/enc_file/issues) page for known bugs and feature requests, or [start a discussion](https://github.com/ArdentEmpiricist/enc_file/discussions) for questions and ideas.
+
+---
+
+## Project Structure
+
+- `src/lib.rs` - Public library API
+- `src/main.rs` - CLI application
+- `src/gui_main.rs` - GUI application (requires `gui` feature)
+- `src/crypto.rs` - Core encryption/decryption logic
+- `src/format.rs` - File format definitions
+- `src/hash.rs` - Hashing implementations
+- `src/kdf.rs` - Key derivation functions
+- `src/streaming.rs` - Streaming mode implementation
+- `tests/` - Integration tests
+
+---
+
+**Note on Binary Names**
 
 The library crate is named `enc_file` (snake_case), which is the name you use when importing it in Rust code:
 
@@ -433,10 +579,16 @@ The compiled CLI binary is named `enc-file` (kebab-case), which is the name you 
 enc-file hash --file test.txt
 ```
 
-This naming separation is intentional and follows common conventions.
+This naming separation is intentional and follows common Rust conventions.
 
 ---
 
-## Feedback & Issues
+## Feedback & Support
 
-Feedback, bug reports, and pull requests are highly appreciated! Open an [Issue](https://github.com/ArdentEmpiricist/enc_file/issues) or [start a discussion](https://github.com/ArdentEmpiricist/enc_file/discussions).
+- **Bug reports**: Open an [Issue](https://github.com/ArdentEmpiricist/enc_file/issues)
+- **Feature requests**: Open an [Issue](https://github.com/ArdentEmpiricist/enc_file/issues) or [Discussion](https://github.com/ArdentEmpiricist/enc_file/discussions)
+- **Questions**: Start a [Discussion](https://github.com/ArdentEmpiricist/enc_file/discussions)
+- **Security concerns**: Please report security vulnerabilities privately by email to the repository owner
+
+---
+
