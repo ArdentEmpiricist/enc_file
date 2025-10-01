@@ -52,13 +52,9 @@
 
 ## Features
 
-<<<<<<< HEAD
+
 - **Cross-platform GUI** with modern, intuitive interface (optional feature).
 - **Command-line interface** for automation and scripting.
-=======
-- **Cross-platform GUI** with modern interface.
-- **Command-line interface** e.g. for automation and scripting.
->>>>>>> 1c747efc23325cc52bddd8e2768508b24c3b0122
 - **Rust library** for programmatic integration.
 - **File and byte array encryption/decryption**.
 - **Multiple AEAD algorithms**: XChaCha20-Poly1305 (default), AES-256-GCM-SIV.
