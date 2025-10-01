@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/enc_file/badge.svg)](https://docs.rs/enc_file/)
 [![Crates.io](https://img.shields.io/crates/l/enc_file?label=License)](https://github.com/ArdentEmpiricist/enc_file/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/enc_file?color=darkblue&label=Downloads)](https://crates.io/crates/enc_file)
-[![Rust Edition](https://img.shields.io/badge/rust-2024-orange)](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html)
+[![Rust Edition](https://img.shields.io/badge/rust-2024-orange)](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
 
 # enc_file
 
