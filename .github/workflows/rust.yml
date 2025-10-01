@@ -24,5 +24,9 @@ jobs:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
     - name: Build
       run: cargo build --verbose
+    - name: Build with GUI features
+      run: cargo build --verbose --features gui
     - name: Run tests
       run: cargo test --release --verbose
+    - name: Run tests with GUI features
+      run: cargo test --release --verbose --features gui
