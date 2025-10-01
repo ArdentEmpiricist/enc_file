@@ -609,7 +609,13 @@ impl EncFileApp {
         let password = SecretString::new(self.password.clone().into());
 
         let chunk_size = if self.use_streaming {
-            self.chunk_size.parse().unwrap_or(0)
+            match self.chunk_size.parse::<usize>() {
+                Ok(val) if val > 0 => val,
+                _ => {
+                    self.error_message = Some("Invalid chunk size: must be a positive integer".to_string());
+                    return;
+                }
+            }
         } else {
             0
         };
