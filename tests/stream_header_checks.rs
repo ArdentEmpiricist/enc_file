@@ -47,7 +47,7 @@ fn update_or_insert_map_key(map: &mut Vec<(Value, Value)>, key: Value, new_value
 
 /// Helper function to safely find a key in a CBOR map and return mutable reference to its value.
 /// This abstracts away the internal Vec structure for better maintainability.
-fn find_map_value_mut<'a>(map: &'a mut [(Value, Value)], key: &Value) -> Option<&'a mut Value> {
+fn find_map_value_mut<'a>(map: &'a mut Vec<(Value, Value)>, key: &Value) -> Option<&'a mut Value> {
     for (k, v) in map.iter_mut() {
         if k == key {
             return Some(v);
