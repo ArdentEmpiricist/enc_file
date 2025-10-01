@@ -498,7 +498,6 @@ This tool is designed for **data-at-rest protection**. It does NOT protect again
 - ❌ **Compromised host**: Malware, keyloggers, or rootkits can steal passwords and keys
 - ❌ **Side-channel attacks**: Power analysis, timing attacks (use hardware security modules for high-security needs)
 - ❌ **Memory forensics**: Plaintext may temporarily reside in RAM during operation
-- ❌ **Rubber-hose cryptanalysis**: Physical coercion to reveal passwords
 
 ### When to Use Audited Alternatives
 
