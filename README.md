@@ -36,7 +36,7 @@ Password-based, authenticated file encryption with a small versioned header and 
 - **Streaming mode** for large files (constant memory; configurable `chunk_size`).
 - Use `secrecy` wrappers and zeroize buffers.
 - Compute a file hash and print it as hex.
-- Usable as **library** and **CLI**.
+- Usable as **library**, **GUI** and **CLI**.
 
 ---
 
