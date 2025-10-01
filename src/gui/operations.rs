@@ -10,6 +10,16 @@ pub enum OperationMessage {
     Error(String),
 }
 
+/// Helper function to send operation messages with proper error handling
+/// 
+/// If the send fails, it logs the error. This can happen if the receiver has been dropped,
+/// which typically occurs when the GUI has been closed or the operation was cancelled.
+fn send_message(sender: &mpsc::UnboundedSender<OperationMessage>, msg: OperationMessage) {
+    if let Err(e) = sender.send(msg) {
+        eprintln!("Failed to send operation message: {:?}. Receiver may have been dropped.", e);
+    }
+}
+
 pub struct Operation;
 
 impl Operation {
@@ -20,14 +30,14 @@ impl Operation {
         options: EncryptOptions,
         sender: mpsc::UnboundedSender<OperationMessage>,
     ) {
-        let _ = sender.send(OperationMessage::Progress {
+        send_message(&sender, OperationMessage::Progress {
             message: "Reading input file...".to_string(),
             progress: Some(0.1),
         });
         
         let result = if options.stream {
             // Use streaming encryption
-            let _ = sender.send(OperationMessage::Progress {
+            send_message(&sender, OperationMessage::Progress {
                 message: "Encrypting with streaming mode...".to_string(),
                 progress: Some(0.5),
             });
@@ -35,7 +45,7 @@ impl Operation {
             encrypt_file_streaming(&input, output.as_deref(), password, options)
         } else {
             // Use regular encryption
-            let _ = sender.send(OperationMessage::Progress {
+            send_message(&sender, OperationMessage::Progress {
                 message: "Encrypting file...".to_string(),
                 progress: Some(0.5),
             });
@@ -45,12 +55,12 @@ impl Operation {
         
         match result {
             Ok(output_path) => {
-                let _ = sender.send(OperationMessage::Success(
+                send_message(&sender, OperationMessage::Success(
                     format!("File encrypted successfully!\nOutput: {}", output_path.display())
                 ));
             }
             Err(e) => {
-                let _ = sender.send(OperationMessage::Error(
+                send_message(&sender, OperationMessage::Error(
                     format!("Encryption failed: {}", e)
                 ));
             }
@@ -64,7 +74,7 @@ impl Operation {
         force_overwrite: bool,
         sender: mpsc::UnboundedSender<OperationMessage>,
     ) {
-        let _ = sender.send(OperationMessage::Progress {
+        send_message(&sender, OperationMessage::Progress {
             message: "Reading encrypted file...".to_string(),
             progress: Some(0.1),
         });
@@ -77,19 +87,19 @@ impl Operation {
             let _ = std::fs::remove_file(output_path);
         }
         
-        let _ = sender.send(OperationMessage::Progress {
+        send_message(&sender, OperationMessage::Progress {
             message: "Decrypting file...".to_string(),
             progress: Some(0.5),
         });
         
         match decrypt_file(&input, output.as_deref(), password) {
             Ok(output_path) => {
-                let _ = sender.send(OperationMessage::Success(
+                send_message(&sender, OperationMessage::Success(
                     format!("File decrypted successfully!\nOutput: {}", output_path.display())
                 ));
             }
             Err(e) => {
-                let _ = sender.send(OperationMessage::Error(
+                send_message(&sender, OperationMessage::Error(
                     format!("Decryption failed: {}", e)
                 ));
             }
@@ -101,12 +111,12 @@ impl Operation {
         algorithm: HashAlg,
         sender: mpsc::UnboundedSender<OperationMessage>,
     ) {
-        let _ = sender.send(OperationMessage::Progress {
+        send_message(&sender, OperationMessage::Progress {
             message: "Reading file...".to_string(),
             progress: Some(0.1),
         });
         
-        let _ = sender.send(OperationMessage::Progress {
+        send_message(&sender, OperationMessage::Progress {
             message: format!("Computing {algorithm:?} hash..."),
             progress: Some(0.5),
         });
@@ -114,13 +124,13 @@ impl Operation {
         match hash_file(&input, algorithm) {
             Ok(digest) => {
                 let hex_hash = to_hex_lower(&digest);
-                let _ = sender.send(OperationMessage::Success(
+                send_message(&sender, OperationMessage::Success(
                     format!("Hash calculated successfully!\n\nAlgorithm: {:?}\nFile: {}\nHash: {}", 
                            algorithm, input.display(), hex_hash)
                 ));
             }
             Err(e) => {
-                let _ = sender.send(OperationMessage::Error(
+                send_message(&sender, OperationMessage::Error(
                     format!("Hash calculation failed: {}", e)
                 ));
             }
