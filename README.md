@@ -76,7 +76,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-enc_file = "0.5"
+enc_file = "0.6"
 ```
 
 ## GUI Usage
