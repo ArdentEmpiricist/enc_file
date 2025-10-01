@@ -1,7 +1,7 @@
 use assert_fs::prelude::*;
+use ciborium::Value;
 use secrecy::SecretString;
 use std::fs;
-use ciborium::Value;
 
 use enc_file::{AeadAlg, EncFileError, EncryptOptions, decrypt_file, encrypt_file_streaming};
 

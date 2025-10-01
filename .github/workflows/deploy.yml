@@ -23,10 +23,6 @@ jobs:
 
           - build: macos
             os: macos-latest
-            target: x86_64-apple-darwin
-
-          - build: macos
-            os: macos-latest
             target: aarch64-apple-darwin
 
           - build: windows
@@ -58,19 +54,46 @@ jobs:
           command: build
           args: --verbose --release --target ${{ matrix.target }}
 
+      - name: Build GUI version
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1
+        with:
+          use-cross: true
+          command: build
+          args: --verbose --release --target ${{ matrix.target }} --features gui
+
       - name: Build archive
         shell: bash
         run: |
-          # Replace with the name of your binary
+          # CLI binary name
           binary_name="enc-file"
+          # GUI binary name  
+          gui_binary_name="enc-file-gui"
 
           dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
           mkdir "$dirname"
+          
+          # Copy CLI binary
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv "target/${{ matrix.target }}/release/$binary_name.exe" "$dirname"
+            mv "target/${{ matrix.target }}/release/$gui_binary_name.exe" "$dirname"
           else
             mv "target/${{ matrix.target }}/release/$binary_name" "$dirname"
+            mv "target/${{ matrix.target }}/release/$gui_binary_name" "$dirname"
           fi
+
+          # Add README for the release
+          cat > "$dirname/README.txt" << EOF
+          enc_file - Secure File Encryption
+          =================================
+          
+          This archive contains both the CLI and GUI versions of enc_file:
+          
+          • $binary_name (or $binary_name.exe) - Command-line interface
+          • $gui_binary_name (or $gui_binary_name.exe) - Graphical user interface
+          
+          For usage instructions, run '$binary_name --help' or launch the GUI.
+          Visit https://github.com/ArdentEmpiricist/enc_file for documentation.
+          EOF
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a "$dirname.zip" "$dirname"

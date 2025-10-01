@@ -115,7 +115,7 @@ struct EncArgs {
     ///   - ≤ 1 MiB           → 64 KiB  
     ///   - 1 MiB–100 MiB     → 1 MiB  
     ///   - Files > 100 MiB   → scales up (max 8 MiB)  
-    /// Must be ≤ u32::MAX – 16 (32-bit length + 16 B tag).
+    ///     Must be ≤ u32::MAX – 16 (32-bit length + 16 B tag).
     #[arg(long, default_value_t = 0)]
     chunk_size: usize,
 

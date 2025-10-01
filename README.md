@@ -11,12 +11,23 @@
   <img src="https://raw.githubusercontent.com/ArdentEmpiricist/enc_file/main/assets/logo.png" alt="enc_file Logo" width="200"/>
 </p>
 
-Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library** and a **CLI**.
+Password-based, authenticated file encryption with a small versioned header and Argon2id KDF. Ships as both a **library**, **CLI**, and **GUI application**.
 
 > [!CAUTION]
 > **Security note**: This project is **neither** audited **nor** reviewed. It protects data at rest but cannot defend a compromised host or advanced side channels. Use at your own risk. For important or sensitive information, use Veracrypt (or similar) instead.
 
 ## Features
+
+- **Cross-platform GUI** with modern interface (optional)
+- **Command-line interface** for automation and scripting
+- **Rust library** for programmatic integration
+- **File and byte array encryption/decryption**
+- **Streaming encryption** for large files (constant memory usage)
+- **Multiple AEAD algorithms**: XChaCha20-Poly1305, AES-256-GCM-SIV
+- **Password-based key derivation** using Argon2id
+- **Key map management** for named symmetric keys
+- **Flexible hashing API** with support for BLAKE3, SHA2, SHA3, Blake2b, XXH3, and CRC32
+- **ASCII armor** for encrypted data (Base64 encoding)
 
 - **Argon2id** password KDF (per-file salt + stored parameters).
 - AEAD: **XChaCha20-Poly1305** (default) or **AES-256-GCM-SIV**.
@@ -30,6 +41,67 @@ Password-based, authenticated file encryption with a small versioned header and 
 ---
 
 ## Install
+
+### GUI Application
+
+To build and install the GUI version:
+
+```bash
+cargo install enc_file --features gui
+# Then run: enc-file-gui
+```
+
+Or download pre-built binaries (including GUI) from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page.
+
+Or clone and build locally:
+
+```bash
+git clone https://github.com/ArdentEmpiricist/enc_file.git
+cd enc_file
+cargo build --release --features gui
+./target/release/enc-file-gui
+```
+
+### CLI Tool
+
+```bash
+cargo install enc_file
+```
+
+Or download pre-built binaries from the [Releases](https://github.com/ArdentEmpiricist/enc_file/releases) page (includes both CLI and GUI versions).
+
+### Library
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+enc_file = "0.5"
+```
+
+## GUI Usage
+
+The GUI provides an intuitive interface for file encryption, decryption, and hashing:
+
+- **Modern Interface**: Clean, responsive design that works across platforms
+- **Basic Mode**: Simple file selection, password entry, and one-click operations
+- **Advanced Options**: Expandable panel with:
+  - Algorithm selection (XChaCha20-Poly1305, AES-256-GCM-SIV)
+  - Streaming mode for large files
+  - Custom chunk sizes
+  - ASCII armor output
+  - KDF parameter tuning (memory cost, iterations, parallelism)
+- **Progress Indication**: Real-time progress bars and status messages
+- **Results Display**: Copyable output with hash values and file paths
+- **Password Strength**: Visual indicator for password security
+
+### GUI Features
+
+- **Encrypt Mode**: Select files, set passwords, choose algorithms
+- **Decrypt Mode**: Decrypt files with automatic output path detection
+- **Hash Mode**: Calculate file hashes with multiple algorithm support
+- **Cross-Platform**: Runs on Windows, macOS, and Linux
+- **File Browser Integration**: Native file picker dialogs
 
 You can install **enc-file** in several ways:
 
