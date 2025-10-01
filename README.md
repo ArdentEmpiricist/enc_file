@@ -18,8 +18,8 @@ Password-based, authenticated file encryption with a small versioned header and 
 
 ## Features
 
-- **Cross-platform GUI** with modern interface (optional).
-- **Command-line interface** for automation and scripting.
+- **Cross-platform GUI** with modern interface.
+- **Command-line interface** e.g. for automation and scripting.
 - **Rust library** for programmatic integration.
 - **File and byte array encryption/decryption**.
 - **Multiple AEAD algorithms**: XChaCha20-Poly1305 (default), AES-256-GCM-SIV.
