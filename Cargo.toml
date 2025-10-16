@@ -51,7 +51,7 @@ aes-gcm-siv = "0.11"
 aead = "0.5"
 
 # OS randomness
-getrandom = "0.3.3"
+getrandom = "0.3.4"
 
 # Secrets & hygiene
 secrecy = "0.10"
