@@ -14,6 +14,7 @@
 use crate::types::{EncFileError, KdfParams};
 use argon2::{Algorithm, Argon2, Params, Version};
 use secrecy::{ExposeSecret, SecretString};
+use zeroize::Zeroizing;
 
 /// Minimum memory cost for Argon2id (64 MiB).
 const MIN_MEMORY_COST_KIB: u32 = 65536;
@@ -93,12 +94,12 @@ pub fn derive_key_argon2id(
         .map_err(|_| EncFileError::Invalid("kdf: invalid Argon2 params"))?;
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon_params);
-    let mut out = [0u8; 32];
+    let mut out = Zeroizing::new([0u8; 32]);
 
     // Perform key derivation
     argon2
-        .hash_password_into(password.expose_secret().as_bytes(), salt, &mut out)
+        .hash_password_into(password.expose_secret().as_bytes(), salt, out.as_mut())
         .map_err(|_| EncFileError::Crypto)?;
-
-    Ok(out)
+    
+    Ok(*out)
 }
