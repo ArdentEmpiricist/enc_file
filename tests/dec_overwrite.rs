@@ -6,6 +6,10 @@ use std::process::Command;
 
 use enc_file::{EncryptOptions, encrypt_file};
 
+fn enc_file_cmd() -> Command {
+    Command::new(assert_cmd::cargo::cargo_bin!("enc-file"))
+}
+
 /// Decrypt with an explicit --out:
 /// - without --force => must fail and keep preexisting file intact
 /// - with --force    => must succeed and replace contents
@@ -32,7 +36,7 @@ fn dec_refuses_and_then_overwrites_with_explicit_out() -> Result<(), Box<dyn std
     out.write_str("preexisting")?;
 
     // Decrypt WITHOUT --force -> must fail and keep "preexisting"
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -46,7 +50,7 @@ fn dec_refuses_and_then_overwrites_with_explicit_out() -> Result<(), Box<dyn std
     out.assert("preexisting");
 
     // Decrypt WITH --force -> must succeed and replace content
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -88,7 +92,7 @@ fn dec_refuses_and_then_overwrites_with_default_out() -> Result<(), Box<dyn std:
     plain.write_str("THIS WAS HERE BEFORE DEC\n")?;
 
     // Decrypt WITHOUT --force (no --out) -> must fail and keep preexisting content
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--password-file"])
@@ -100,7 +104,7 @@ fn dec_refuses_and_then_overwrites_with_default_out() -> Result<(), Box<dyn std:
     plain.assert("THIS WAS HERE BEFORE DEC\n");
 
     // Decrypt WITH --force -> must succeed and restore original content
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--password-file"])

@@ -10,6 +10,10 @@ use tempfile::tempdir;
 
 const ONE_MIB: usize = 1024 * 1024;
 
+fn enc_file_cmd() -> Command {
+    Command::new(assert_cmd::cargo::cargo_bin!("enc-file"))
+}
+
 fn create_test_file(size: usize) -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempdir().unwrap();
     let path = dir.path().join("test.bin");
@@ -26,7 +30,7 @@ fn cli_adaptive_sizing_small_file() {
     fs::write(&password_file, "test_password").unwrap();
 
     // Test with default chunk_size (0) - should use adaptive sizing
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     cmd.args(["enc", "--stream"])
         .arg("--in").arg(&input_path)
         .arg("--out").arg(&encrypted_path)
@@ -56,7 +60,7 @@ fn cli_adaptive_sizing_medium_file() {
     fs::write(&password_file, "test_password").unwrap();
 
     // Test with default chunk_size (0) - should use adaptive sizing
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     cmd.args(["enc", "--stream"])
         .arg("--in").arg(&input_path)
         .arg("--out").arg(&encrypted_path)
@@ -85,7 +89,7 @@ fn cli_explicit_chunk_size_override() {
     fs::write(&password_file, "test_password").unwrap();
 
     // Test with explicit chunk_size - should override adaptive sizing
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     cmd.args(["enc", "--stream"])
         .arg("--chunk-size").arg("65536") // 64 KB explicit
         .arg("--in").arg(&input_path)
@@ -104,7 +108,7 @@ fn cli_explicit_chunk_size_override() {
 
 #[test]
 fn cli_help_shows_adaptive_sizing_info() {
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     let output = cmd.arg("enc").arg("--help").assert().success();
     
     let help_text = String::from_utf8_lossy(&output.get_output().stdout);
@@ -119,7 +123,7 @@ fn cli_help_shows_adaptive_sizing_info() {
 
 #[test]
 fn cli_help_shows_improved_alg_description() {
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     let output = cmd.arg("enc").arg("--help").assert().success();
     
     let help_text = String::from_utf8_lossy(&output.get_output().stdout);

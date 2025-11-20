@@ -33,6 +33,10 @@ fn make_plain_big(td: &assert_fs::TempDir) -> std::path::PathBuf {
     p.path().to_path_buf()
 }
 
+fn enc_file_cmd() -> Command {
+    Command::new(assert_cmd::cargo::cargo_bin!("enc-file"))
+}
+
 // ------------------------- Non-stream roundtrips -----------------------------
 
 #[test]
@@ -44,7 +48,7 @@ fn cli_nonstream_xchacha_long_password_file() -> Result<(), Box<dyn std::error::
     let out = td.child("a_x.out");
     let pw = make_pw(&td);
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -54,7 +58,7 @@ fn cli_nonstream_xchacha_long_password_file() -> Result<(), Box<dyn std::error::
         .assert()
         .success();
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -78,7 +82,7 @@ fn cli_nonstream_aes_short_p_on_enc_and_dec() -> Result<(), Box<dyn std::error::
     let out = td.child("a_aes.out");
     let pw = make_pw(&td);
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -89,7 +93,7 @@ fn cli_nonstream_aes_short_p_on_enc_and_dec() -> Result<(), Box<dyn std::error::
         .assert()
         .success();
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -115,7 +119,7 @@ fn cli_streaming_xchacha_enc_short_p_dec_long() -> Result<(), Box<dyn std::error
     let out = td.child("big_x.out");
     let pw = make_pw(&td);
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -127,7 +131,7 @@ fn cli_streaming_xchacha_enc_short_p_dec_long() -> Result<(), Box<dyn std::error
         .assert()
         .success();
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -151,7 +155,7 @@ fn cli_streaming_aes_enc_long_dec_short_p() -> Result<(), Box<dyn std::error::Er
     let out = td.child("big_aes.out");
     let pw = make_pw(&td);
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -164,7 +168,7 @@ fn cli_streaming_aes_enc_long_dec_short_p() -> Result<(), Box<dyn std::error::Er
         .assert()
         .success();
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -190,7 +194,7 @@ fn cli_nonstream_armor_xchacha_enc_short_p_dec_long() -> Result<(), Box<dyn std:
     let out = td.child("a_armored.out");
     let pw = make_pw(&td);
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -201,7 +205,7 @@ fn cli_nonstream_armor_xchacha_enc_short_p_dec_long() -> Result<(), Box<dyn std:
         .assert()
         .success();
 
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["--out"])
@@ -228,7 +232,7 @@ fn cli_enc_overwrite_requires_force_long_and_works_with_long_p()
     let pw = make_pw(&td);
 
     // first enc
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -239,7 +243,7 @@ fn cli_enc_overwrite_requires_force_long_and_works_with_long_p()
         .success();
 
     // without --force must fail
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -251,7 +255,7 @@ fn cli_enc_overwrite_requires_force_long_and_works_with_long_p()
         .stderr(predicate::str::contains("use --force"));
 
     // with --force must succeed
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -275,7 +279,7 @@ fn cli_dec_overwrite_requires_force_short_and_long() -> Result<(), Box<dyn std::
 
     // create ciphertext
     let ct = td.child("dec_overwrite.enc");
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["enc", "--in"])
         .arg(&plain)
         .args(["--out"])
@@ -290,7 +294,7 @@ fn cli_dec_overwrite_requires_force_short_and_long() -> Result<(), Box<dyn std::
     dest.write_str("PREEXISTING").expect("write");
 
     // dec without force -> must fail
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["-p"]) // short -p on dec
@@ -301,7 +305,7 @@ fn cli_dec_overwrite_requires_force_short_and_long() -> Result<(), Box<dyn std::
     dest.assert("PREEXISTING");
 
     // dec with short -f
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "-i"])
         .arg(ct.path())
         .args(["-p"])
@@ -312,7 +316,7 @@ fn cli_dec_overwrite_requires_force_short_and_long() -> Result<(), Box<dyn std::
 
     // recreate and test long --force too
     dest.write_str("PREEXISTING2").expect("write");
-    Command::cargo_bin("enc-file")?
+    enc_file_cmd()
         .args(["dec", "--in"])
         .arg(ct.path())
         .args(["-p"])

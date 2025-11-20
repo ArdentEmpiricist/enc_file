@@ -5,6 +5,10 @@ use tempfile::tempdir;
 
 use enc_file::{HashAlg, hash_file, to_hex_lower};
 
+fn enc_file_cmd() -> Command {
+    Command::new(assert_cmd::cargo::cargo_bin!("enc-file"))
+}
+
 fn write_tmp_file(bytes: &[u8]) -> std::path::PathBuf {
     let dir = tempdir().unwrap();
     let p = dir.path().join("m.txt");
@@ -15,7 +19,7 @@ fn write_tmp_file(bytes: &[u8]) -> std::path::PathBuf {
 }
 
 fn cli_hash_hex(path: &std::path::Path, alg_cli: &str) -> String {
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     let assert = cmd
         .args(["hash"])
         .arg(path)
@@ -27,7 +31,7 @@ fn cli_hash_hex(path: &std::path::Path, alg_cli: &str) -> String {
 }
 
 fn cli_hash_raw(path: &std::path::Path, alg_cli: &str) -> Vec<u8> {
-    let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
     let assert = cmd
         .args(["hash"])
         .arg(path)
@@ -77,12 +81,6 @@ fn cli_hash_raw_bytes_match_library_digest_once() {
 
 #[test]
 fn cli_hash_aliases_match_canonical() {
-    use assert_cmd::Command;
-    use enc_file::{HashAlg, hash_file, to_hex_lower};
-    use std::fs::File;
-    use std::io::Write;
-    use tempfile::tempdir;
-
     // Prepare input
     let dir = tempdir().unwrap();
     let p = dir.path().join("m.txt");
@@ -104,7 +102,7 @@ fn cli_hash_aliases_match_canonical() {
         let expected_hex = to_hex_lower(&hash_file(&p, *alg_enum).unwrap());
 
         // Check canonical
-        let mut cmd = Command::cargo_bin("enc-file").unwrap();
+    let mut cmd = enc_file_cmd();
         let assert = cmd
             .args(["hash"])
             .arg(&p)
@@ -118,7 +116,7 @@ fn cli_hash_aliases_match_canonical() {
 
         // Check aliases
         for &alias in *aliases {
-            let mut cmd = Command::cargo_bin("enc-file").unwrap();
+            let mut cmd = enc_file_cmd();
             let assert = cmd
                 .args(["hash"])
                 .arg(&p)
