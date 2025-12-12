@@ -84,7 +84,7 @@ hex = "0.4"
 num_cpus = "1"
 
 # GUI dependencies (optional)
-eframe = { version = "0.33.2", optional = true }
+eframe = { version = "0.33.3", optional = true }
 egui = { version = "0.33.2", optional = true }
 egui_extras = { version = "0.33.2", features = ["file"], optional = true }
 rfd = { version = "0.16", optional = true }
