@@ -24,7 +24,6 @@ allow = [
     "Zlib",
     "ISC",
     "OFL-1.1",
-    "Ubuntu-font-1.0",
 ]
 
 [bans]
