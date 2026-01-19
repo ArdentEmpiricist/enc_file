@@ -59,7 +59,7 @@ zeroize = "1.8.2"
 
 # CLI & errors
 clap = { version = "4.5.54", features = ["derive"] }
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 anyhow = "1"
 
 # I/O ergonomics
