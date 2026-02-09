@@ -101,7 +101,7 @@ proptest = "1"
 assert_cmd = "2"
 assert_fs = "1"
 tempfile = "3"
-rand = { version = "0.9.2", features = ["std"] }
+rand = { version = "0.10.0", features = ["std"] }
 predicates = "3"
 
 [profile.release]
