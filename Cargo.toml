@@ -69,7 +69,7 @@ tempfile = "3"
 # Hashing (utility subcommand)
 blake3 = "1"
 sha2 = "0.11"
-sha3 = "0.10"
+sha3 = "0.11"
 blake2 = "0.10"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 crc = "3"
