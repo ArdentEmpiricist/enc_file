@@ -38,12 +38,12 @@ mod tests {
         // Test successful hash extraction
         let result = "Hash calculated successfully!\n\nAlgorithm: Blake3\nFile: /path/to/file.txt\nHash: 8e3d0e03b2a56699b6f40000b6f3c48dbe7a8d347be15f57993cce6aa075a891";
         let extracted = app.extract_hash_from_result(result);
-        assert_eq!(extracted, Some("8e3d0e03b2a56699b6f40000b6f3c48dbe7a8d347be15f57993cce6aa075a891".to_string()));
+        assert_eq!(extracted, Some("8e3d0e03b2a56699b6f40000b6f3c48dbe7a8d347be15f57993cce6aa075a891".to_string())); // DevSkim: ignore DS173237
         
         // Test with different algorithm
         let result2 = "Hash calculated successfully!\n\nAlgorithm: Sha256\nFile: /another/file.txt\nHash: abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
         let extracted2 = app.extract_hash_from_result(result2);
-        assert_eq!(extracted2, Some("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890".to_string()));
+        assert_eq!(extracted2, Some("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890".to_string())); // DevSkim: ignore DS173237
         
         // Test with invalid format (should return None)
         let invalid_result = "Some other result without hash line";

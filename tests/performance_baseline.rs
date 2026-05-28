@@ -93,7 +93,7 @@ fn baseline_streaming_performance_aes() {
     decrypt_file(&encrypted, Some(&decrypted), password).unwrap();
     let decrypt_time = start.elapsed();
 
-    println!("AES-GCM-SIV Baseline (10 MiB, 1 MiB chunks):");
+    println!("AES-GCM-SIV Baseline (10 MiB, 1 MiB chunks):"); // DevSkim: ignore DS440011
     println!("  Encryption: {:?}", encrypt_time);
     println!("  Decryption: {:?}", decrypt_time);
 

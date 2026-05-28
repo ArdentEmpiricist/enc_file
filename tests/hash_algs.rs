@@ -12,7 +12,7 @@ fn hash_bytes_known_vectors() {
     let h_sha256 = hash_bytes(m, HashAlg::Sha256);
     assert_eq!(
         to_hex_lower(&h_sha256),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" // DevSkim: ignore DS173237
     );
 
     let h_crc = hash_bytes(m, HashAlg::Crc32);

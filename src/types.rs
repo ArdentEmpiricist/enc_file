@@ -104,7 +104,7 @@ pub enum EncFileError {
     Crypto,
     #[error("unsupported format version {0}")]
     UnsupportedVersion(u16),
-    #[error("unsupported AEAD algorithm id {0}")]
+    #[error("unsupported AEAD algorithm id {0}")] // DevSkim: ignore DS187371
     UnsupportedAead(u8),
     #[error("unsupported KDF algorithm id {0}")]
     UnsupportedKdf(u8),
