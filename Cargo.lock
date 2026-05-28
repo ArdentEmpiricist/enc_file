@@ -1388,7 +1388,7 @@ dependencies = [
 
 [[package]]
 name = "enc_file"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "aead",
  "aes-gcm-siv",
