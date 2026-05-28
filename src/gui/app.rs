@@ -73,7 +73,7 @@ impl EncFileApp {
 }
 
 impl eframe::App for EncFileApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Handle incoming messages from operations
         self.handle_operation_messages();
 
@@ -81,10 +81,10 @@ impl eframe::App for EncFileApp {
         if self.progress.is_running() {
             ctx.request_repaint();
         }
+    }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.draw_ui(ui);
-        });
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.draw_ui(ui);
     }
 }
 
