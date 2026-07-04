@@ -1,9 +1,10 @@
 //! Core encryption and decryption primitives.
 
 use crate::types::{AeadAlg, EncFileError};
-use aead::{Aead, KeyInit};
-use aes_gcm_siv::Aes256GcmSiv;
-use chacha20poly1305::{XChaCha20Poly1305, XNonce};
+#[allow(unused_imports)]
+use aes_gcm_siv::{aead::{Aead as _, KeyInit as _}, Aes256GcmSiv, Nonce as AesNonce};
+#[allow(unused_imports)]
+use chacha20poly1305::{aead::{Aead as _, KeyInit as _}, XChaCha20Poly1305, XNonce};
 use getrandom::fill as getrandom;
 use zeroize::Zeroize;
 
@@ -61,17 +62,20 @@ pub fn aead_encrypt(
         AeadAlg::XChaCha20Poly1305 => {
             let cipher =
                 XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
-            let nonce = XNonce::from_slice(nonce_bytes);
+            let mut nonce_bytes_fixed = [0u8; 24];
+            nonce_bytes_fixed.copy_from_slice(nonce_bytes);
+            let nonce = XNonce::from(nonce_bytes_fixed);
             cipher
-                .encrypt(nonce, plaintext)
+                .encrypt(&nonce, plaintext)
                 .map_err(|_| EncFileError::Crypto)
         }
         AeadAlg::Aes256GcmSiv => {
-            use aes_gcm_siv::aead::generic_array::GenericArray;
             let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
-            let nonce = GenericArray::from_slice(nonce_bytes);
+            let mut nonce_bytes_fixed = [0u8; 12];
+            nonce_bytes_fixed.copy_from_slice(nonce_bytes);
+            let nonce = AesNonce::from(nonce_bytes_fixed);
             cipher
-                .encrypt(nonce, plaintext)
+                .encrypt(&nonce, plaintext)
                 .map_err(|_| EncFileError::Crypto)
         }
     }
@@ -103,17 +107,20 @@ pub fn aead_decrypt(
         AeadAlg::XChaCha20Poly1305 => {
             let cipher =
                 XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
-            let nonce = XNonce::from_slice(nonce_bytes);
+            let mut nonce_bytes_fixed = [0u8; 24];
+            nonce_bytes_fixed.copy_from_slice(nonce_bytes);
+            let nonce = XNonce::from(nonce_bytes_fixed);
             cipher
-                .decrypt(nonce, ciphertext)
+                .decrypt(&nonce, ciphertext)
                 .map_err(|_| EncFileError::Crypto)
         }
         AeadAlg::Aes256GcmSiv => {
-            use aes_gcm_siv::aead::generic_array::GenericArray;
             let cipher = Aes256GcmSiv::new_from_slice(key).map_err(|_| EncFileError::Crypto)?;
-            let nonce = GenericArray::from_slice(nonce_bytes);
+            let mut nonce_bytes_fixed = [0u8; 12];
+            nonce_bytes_fixed.copy_from_slice(nonce_bytes);
+            let nonce = AesNonce::from(nonce_bytes_fixed);
             cipher
-                .decrypt(nonce, ciphertext)
+                .decrypt(&nonce, ciphertext)
                 .map_err(|_| EncFileError::Crypto)
         }
     }

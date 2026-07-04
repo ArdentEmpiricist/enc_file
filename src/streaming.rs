@@ -10,9 +10,8 @@ use crate::file::default_out_path;
 use crate::format::{DiskHeader, StreamInfo};
 use crate::kdf::derive_key_argon2id;
 use crate::types::{AeadAlg, EncFileError, EncryptOptions};
-use aead::Aead;
-use chacha20poly1305::aead::generic_array::{GenericArray, typenum::U19};
-use chacha20poly1305::aead::stream::{DecryptorBE32, EncryptorBE32};
+use aes_gcm_siv::{aead::Aead as _, Nonce as AesNonce};
+use chacha20poly1305::XNonce;
 use getrandom::fill as getrandom;
 use secrecy::SecretString;
 use std::fs::File;
@@ -105,6 +104,29 @@ fn write_frame<W: Write>(mut w: W, ct: &[u8], is_final: bool) -> Result<(), EncF
     Ok(())
 }
 
+fn xchacha_nonce(prefix: &[u8], counter: u32, last_block: bool) -> Result<XNonce, EncFileError> {
+    if prefix.len() != 19 {
+        return Err(EncFileError::Malformed);
+    }
+
+    let mut nonce = [0u8; 24];
+    nonce[..19].copy_from_slice(prefix);
+    nonce[19..23].copy_from_slice(&counter.to_be_bytes());
+    nonce[23] = u8::from(last_block);
+    Ok(XNonce::from(nonce))
+}
+
+fn aes_nonce(prefix: &[u8], counter: u32) -> Result<AesNonce, EncFileError> {
+    if prefix.len() != 8 {
+        return Err(EncFileError::Malformed);
+    }
+
+    let mut nonce = [0u8; 12];
+    nonce[..8].copy_from_slice(prefix);
+    nonce[8..].copy_from_slice(&counter.to_be_bytes());
+    Ok(AesNonce::from(nonce))
+}
+
 /// Encrypt a file using streaming/chunked framing for constant memory usage.
 ///
 /// This function processes large files in chunks to maintain constant memory usage.
@@ -158,7 +180,6 @@ pub fn encrypt_file_streaming(
             }
         }
         AeadAlg::Aes256GcmSiv => {
-            // 8-byte prefix + 32-bit counter per chunk => unique nonces.
             let mut prefix = vec![0u8; 8];
             getrandom(&mut prefix).map_err(|_| EncFileError::Crypto)?;
             StreamInfo {
@@ -199,28 +220,54 @@ pub fn encrypt_file_streaming(
                 Some(s) => s,
                 None => return Err(EncFileError::Invalid("missing stream info")),
             };
-            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
-            let mut enc = EncryptorBE32::from_aead(cipher, nonce_prefix);
+            let mut pending: Option<Vec<u8>> = None;
+            let mut counter = 0u32;
 
             loop {
                 let n = reader.read(&mut buf)?;
-                if n == 0 {
-                    break;
+                let current = if n > 0 { Some(buf[..n].to_vec()) } else { None };
+
+                if let Some(previous) = pending.take() {
+                    let nonce = xchacha_nonce(&stream_info.nonce_prefix, counter, false)?;
+                    let ct = cipher
+                        .encrypt(&nonce, previous.as_slice())
+                        .map_err(|_| EncFileError::Crypto)?;
+                    write_frame(&mut writer, &ct, false)?;
+                    counter = counter
+                        .checked_add(1)
+                        .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
                 }
 
-                let pt = &buf[..n];
-                let ct = enc.encrypt_next(pt).map_err(|_| EncFileError::Crypto)?;
-                write_frame(&mut writer, &ct, false)?;
-
-                // Cheap hardening: wipe the plaintext we just processed
-                buf[..n].zeroize();
+                match current {
+                    Some(chunk) if n < eff_chunk_size => {
+                        let nonce = xchacha_nonce(&stream_info.nonce_prefix, counter, true)?;
+                        let ct = cipher
+                            .encrypt(&nonce, chunk.as_slice())
+                            .map_err(|_| EncFileError::Crypto)?;
+                        write_frame(&mut writer, &ct, true)?;
+                        break;
+                    }
+                    Some(chunk) => {
+                        pending = Some(chunk);
+                    }
+                    None => {
+                        if let Some(previous) = pending.take() {
+                            let nonce = xchacha_nonce(&stream_info.nonce_prefix, counter, true)?;
+                            let ct = cipher
+                                .encrypt(&nonce, previous.as_slice())
+                                .map_err(|_| EncFileError::Crypto)?;
+                            write_frame(&mut writer, &ct, true)?;
+                        } else {
+                            let nonce = xchacha_nonce(&stream_info.nonce_prefix, counter, true)?;
+                            let ct = cipher
+                                .encrypt(&nonce, &[] as &[u8])
+                                .map_err(|_| EncFileError::Crypto)?;
+                            write_frame(&mut writer, &ct, true)?;
+                        }
+                        break;
+                    }
+                }
             }
-
-            // Emit a final empty frame (encrypt_last consumes the encryptor)
-            let ct_final = enc
-                .encrypt_last(&[] as &[u8])
-                .map_err(|_| EncFileError::Crypto)?;
-            write_frame(&mut writer, &ct_final, true)?;
 
             // Wipe the whole buffer (covers any leftover bytes from the last read)
             buf.zeroize();
@@ -234,47 +281,53 @@ pub fn encrypt_file_streaming(
             };
             let prefix = &stream.nonce_prefix;
             let mut counter = 0u32;
-
-            // Pre-allocate nonce buffer to avoid repeated allocations
-            let mut nonce_bytes = Vec::with_capacity(12);
+            let mut pending: Option<Vec<u8>> = None;
 
             loop {
                 let n = reader.read(&mut buf)?;
-                // Mark final on EOF OR on a short read (< chunk size)
-                let is_final = n == 0 || n < eff_chunk_size;
-
-                // If we are at the last available counter and there's more data, we'd overflow.
-                if counter == u32::MAX && !is_final {
-                    // If we have reached the maximum number of frames and the current frame is not final,
-                    // we cannot safely continue (would overflow the counter).
-                    return Err(EncFileError::Invalid("too many frames for 32-bit counter"));
-                }
-
-                // Build 12-byte nonce = 8-byte prefix || 4-byte BE counter
-                nonce_bytes.clear();
-                nonce_bytes.extend_from_slice(prefix);
-                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
-                counter = counter.wrapping_add(1);
-
-                // Encrypt this chunk (n may be 0 for the final empty frame)
-                let pt = &buf[..n];
-                let ct = cipher
-                    .encrypt(GenericArray::from_slice(&nonce_bytes), pt)
-                    .map_err(|_| EncFileError::Crypto)?;
-                write_frame(&mut writer, &ct, is_final)?;
-
-                // Wipe sensitive material
-                if n > 0 {
-                    buf[..n].zeroize();
-                }
-                nonce_bytes.zeroize();
-
-                if is_final {
+                if n == 0 {
+                    if let Some(previous) = pending.take() {
+                        let nonce = aes_nonce(prefix, counter)?;
+                        let ct = cipher
+                            .encrypt(&nonce, previous.as_slice())
+                            .map_err(|_| EncFileError::Crypto)?;
+                        write_frame(&mut writer, &ct, true)?;
+                    } else {
+                        let nonce = aes_nonce(prefix, counter)?;
+                        let ct = cipher
+                            .encrypt(&nonce, &[] as &[u8])
+                            .map_err(|_| EncFileError::Crypto)?;
+                        write_frame(&mut writer, &ct, true)?;
+                    }
                     break;
                 }
+
+                let current = buf[..n].to_vec();
+
+                if let Some(previous) = pending.take() {
+                    let nonce = aes_nonce(prefix, counter)?;
+                    let ct = cipher
+                        .encrypt(&nonce, previous.as_slice())
+                        .map_err(|_| EncFileError::Crypto)?;
+                    write_frame(&mut writer, &ct, false)?;
+                    counter = counter
+                        .checked_add(1)
+                        .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
+                }
+
+                if n < eff_chunk_size {
+                    let nonce = aes_nonce(prefix, counter)?;
+                    let ct = cipher
+                        .encrypt(&nonce, current.as_slice())
+                        .map_err(|_| EncFileError::Crypto)?;
+                    write_frame(&mut writer, &ct, true)?;
+                    break;
+                }
+
+                pending = Some(current);
             }
+
             buf.zeroize();
-            nonce_bytes.zeroize();
         }
     }
 
@@ -362,8 +415,8 @@ pub fn decrypt_stream_into_vec(
             if stream.nonce_prefix.len() != 19 {
                 return Err(EncFileError::Malformed);
             }
-            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream.nonce_prefix);
-            let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
+            use chacha20poly1305::aead::Aead as _;
+            let mut counter = 0u32;
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
@@ -373,19 +426,19 @@ pub fn decrypt_stream_into_vec(
                 body = &remaining_body[ct_len..];
 
                 let is_final = (flags & FLAG_FINAL) != 0;
+                let nonce = xchacha_nonce(&stream.nonce_prefix, counter, is_final)?;
+
+                let mut pt = cipher.decrypt(&nonce, ct).map_err(|_| EncFileError::Crypto)?;
+                out.extend_from_slice(&pt);
+                pt.zeroize();
 
                 if is_final {
-                    let mut pt = dec.decrypt_last(ct).map_err(|_| EncFileError::Crypto)?;
-                    out.extend_from_slice(&pt);
-                    // Zeroize temporary plaintext buffer
-                    pt.zeroize();
                     break;
-                } else {
-                    let mut pt = dec.decrypt_next(ct).map_err(|_| EncFileError::Crypto)?;
-                    out.extend_from_slice(&pt);
-                    // Zeroize temporary plaintext buffer
-                    pt.zeroize();
                 }
+
+                counter = counter
+                    .checked_add(1)
+                    .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
             }
         }
 
@@ -399,8 +452,7 @@ pub fn decrypt_stream_into_vec(
             }
 
             let mut counter = 0u32;
-            // Pre-allocate nonce buffer for reuse
-            let mut nonce_bytes = Vec::with_capacity(12);
+            use aes_gcm_siv::aead::Aead as _;
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
@@ -411,28 +463,23 @@ pub fn decrypt_stream_into_vec(
 
                 let is_final = (flags & FLAG_FINAL) != 0;
 
-                // Reconstruct nonce using reusable buffer
-                nonce_bytes.clear();
-                nonce_bytes.extend_from_slice(prefix);
-                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
-                counter = counter.wrapping_add(1);
-
+                let nonce = aes_nonce(prefix, counter)?;
                 let mut pt = cipher
-                    .decrypt(GenericArray::from_slice(&nonce_bytes), ct)
+                    .decrypt(&nonce, ct)
                     .map_err(|_| EncFileError::Crypto)?;
                 out.extend_from_slice(&pt);
 
                 // Zeroize sensitive material
                 pt.zeroize();
-                nonce_bytes.zeroize();
 
                 if is_final {
                     break;
                 }
-            }
 
-            // Final cleanup
-            nonce_bytes.zeroize();
+                counter = counter
+                    .checked_add(1)
+                    .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
+            }
         }
     }
 
@@ -477,10 +524,9 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
             if stream_info.nonce_prefix.len() != 19 {
                 return Err(EncFileError::Malformed);
             }
-            let nonce_prefix = GenericArray::<u8, U19>::from_slice(&stream_info.nonce_prefix);
-            let mut dec = DecryptorBE32::from_aead(cipher, nonce_prefix);
+            use chacha20poly1305::aead::Aead as _;
+            let mut counter = 0u32;
 
-            // Pre-allocate ciphertext buffer for reuse
             let mut ct_buf = Vec::new();
 
             loop {
@@ -500,21 +546,21 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
                 })?;
 
                 let is_final = (flags & FLAG_FINAL) != 0;
+                let nonce = xchacha_nonce(&stream_info.nonce_prefix, counter, is_final)?;
+                let pt = Zeroizing::new(
+                    cipher
+                        .decrypt(&nonce, &ct_buf[..ct_len])
+                        .map_err(|_| EncFileError::Crypto)?,
+                );
+                buf_writer.write_all(&pt)?;
 
                 if is_final {
-                    let pt = Zeroizing::new(
-                        dec.decrypt_last(&ct_buf[..ct_len])
-                            .map_err(|_| EncFileError::Crypto)?,
-                    );
-                    buf_writer.write_all(&pt)?;
                     break;
-                } else {
-                    let pt = Zeroizing::new(
-                        dec.decrypt_next(&ct_buf[..ct_len])
-                            .map_err(|_| EncFileError::Crypto)?,
-                    );
-                    buf_writer.write_all(&pt)?;
                 }
+
+                counter = counter
+                    .checked_add(1)
+                    .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
             }
 
             // Zeroize the reused ciphertext buffer
@@ -531,10 +577,8 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
             }
 
             let mut counter = 0u32;
-
-            // Pre-allocate buffers for reuse
             let mut ct_buf = Vec::new();
-            let mut nonce_bytes = Vec::with_capacity(12);
+            use aes_gcm_siv::aead::Aead as _;
 
             loop {
                 // Parse frame: [u8 flags][u32 ct_len_be][ct_bytes]
@@ -554,30 +598,27 @@ pub fn decrypt_stream_to_writer<R: Read, W: Write>(
 
                 let is_final = (flags & FLAG_FINAL) != 0;
 
-                // Build nonce: 8-byte prefix + 4-byte counter
-                nonce_bytes.clear();
-                nonce_bytes.extend_from_slice(prefix);
-                nonce_bytes.extend_from_slice(&counter.to_be_bytes());
+                let nonce = aes_nonce(prefix, counter)?;
 
                 let pt = Zeroizing::new(
                     cipher
-                        .decrypt(GenericArray::from_slice(&nonce_bytes), &ct_buf[..ct_len])
+                        .decrypt(&nonce, &ct_buf[..ct_len])
                         .map_err(|_| EncFileError::Crypto)?,
                 );
 
                 buf_writer.write_all(&pt)?;
-                // Zeroize nonce after use
-                nonce_bytes.zeroize();
-                counter = counter.wrapping_add(1);
 
                 if is_final {
                     break;
                 }
+
+                counter = counter
+                    .checked_add(1)
+                    .ok_or(EncFileError::Invalid("too many frames for 32-bit counter"))?;
             }
 
             // Zeroize reused buffers
             ct_buf.zeroize();
-            nonce_bytes.zeroize();
         }
     }
 
