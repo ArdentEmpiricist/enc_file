@@ -69,7 +69,7 @@ tempfile = "3.27.0"
 blake3 = "1.8.5"
 sha2 = "0.11.0"
 sha3 = "0.12.0"
-blake2 = "0.10.6"
+blake2 = "0.11.0"
 xxhash-rust = { version = "0.8.16", features = ["xxh3"] }
 crc = "3.4.0"
 
