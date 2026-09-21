@@ -74,7 +74,7 @@ xxhash-rust = { version = "0.8.16", features = ["xxh3"] }
 crc = "3.4.0"
 
 # Armor (Base64)
-base64 = "0.22.1"
+base64 = "0.23.1"
 
 # Hex CLI input
 hex = "0.4.3"
